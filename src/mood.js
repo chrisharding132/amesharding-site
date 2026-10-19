@@ -146,8 +146,10 @@
     var H = Math.round(Math.max(HB * 0.6, Math.min(HB, playerLimit(box, k))));
     stage.style.height = H + 'px';
     var portrait = H > W, L = portrait ? LABELS.p : LABELS.l;
-    stage.querySelector('.ames-labels.l').style.display = portrait ? 'none' : 'block';
-    stage.querySelector('.ames-labels.p').style.display = portrait ? 'block' : 'none';
+    var show = stage.querySelector(portrait ? '.ames-labels.p' : '.ames-labels.l');
+    stage.querySelector(portrait ? '.ames-labels.l' : '.ames-labels.p').style.display = 'none';
+    show.style.display = 'block';
+    if (!show.getAttribute('src')) show.src = show.dataset.src;   // only download the orientation in use
     var lights = box._lights;
     if (!lights || !lights.length) return;
 
@@ -194,7 +196,7 @@
     if (!stage || stage.classList.contains('on') || !box._lights || !box._layout) return;
     var img = stage.querySelector(box._layout.H > box._layout.W ? '.ames-labels.p' : '.ames-labels.l');
     var playerPending = document.getElementById('ames-player') && !(window.__amesPlayer && window.__amesPlayer.expandedHeight);
-    if ((!img.complete || playerPending) && Date.now() - box._mountedAt < 1500) return;
+    if ((!img.getAttribute('src') || !img.complete || playerPending) && Date.now() - box._mountedAt < 1500) return;
     requestAnimationFrame(function () { stage.classList.add('on'); });
   }
 
@@ -236,8 +238,8 @@
     box.__amesMounted = true;
     box._mountedAt = Date.now();
     box.innerHTML = '<div class="ames-stage">' +
-      '<img class="ames-labels l" alt="" src="' + BASE + 'assets/labels-landscape.png">' +
-      '<img class="ames-labels p" alt="" src="' + BASE + 'assets/labels-portrait.png"></div>';
+      '<img class="ames-labels l" alt="" data-src="' + BASE + 'assets/labels-landscape.png">' +
+      '<img class="ames-labels p" alt="" data-src="' + BASE + 'assets/labels-portrait.png"></div>';
     box._stage = box.firstChild;
     Array.prototype.forEach.call(box.querySelectorAll('img'), function (im) { im.addEventListener('load', function () { reveal(box); }); });
     setTimeout(function () { reveal(box); }, 1600);

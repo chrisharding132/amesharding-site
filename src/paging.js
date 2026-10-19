@@ -14,7 +14,9 @@
     // Readymag's bottom arrow sat on top of the Mood Player; the rail + hint below replace it on phones.
     '.isphone .navigation-arrow{display:none!important;}',
     '#ames-nav{display:none;}',
-    '.isphone #ames-nav{display:block;}',
+    // fades in only once the page behind it has painted, so it never floats over a blank screen
+    '.isphone #ames-nav{display:block;opacity:0;transition:opacity .6s ease;}',
+    '.isphone #ames-nav.ready{opacity:1;}',
     // page rail: one dot per page, current page drawn as a short pill
     '#ames-rail{position:fixed;right:9px;top:50%;transform:translateY(-50%);z-index:10000;display:flex;flex-direction:column;gap:8px;pointer-events:none;}',
     '#ames-rail i{display:block;width:4px;height:4px;border-radius:2px;background:rgba(240,232,218,.38);transition:height .35s ease,background .35s ease;}',
@@ -111,6 +113,35 @@
     }
     sync();
     setInterval(sync, 250);
+    whenPageVisible(mag, function () { nav.classList.add('ready'); });
+  }
+
+  // Calls done() once every image (including CSS backgrounds) on the current page has loaded, or after 5s.
+  function whenPageVisible(mag, done) {
+    var fired = false, start = Date.now();
+    function fire() { if (!fired) { fired = true; done(); } }
+    setTimeout(fire, 5000);
+    (function wait() {
+      var el = mag.currentPage && (mag.currentPage.el || (mag.currentPage.$el && mag.currentPage.$el[0]));
+      if (!el) return setTimeout(wait, 150);
+      var urls = [];
+      Array.prototype.forEach.call(el.querySelectorAll('*'), function (n) {
+        if (n.tagName === 'IMG' && n.currentSrc) urls.push(n.currentSrc);
+        var m = /url\(["']?([^"')]+)/.exec(getComputedStyle(n).backgroundImage || '');
+        if (m && !/^data:/.test(m[1])) urls.push(m[1]);
+      });
+      // Readymag inserts the page background after the other widgets: wait for it, it's the slow one
+      var bg = el.querySelector('.widget-background .picture-background');
+      var bgReady = bg && /url\(/.test(getComputedStyle(bg).backgroundImage);
+      if (!urls.length || (!bgReady && !el.querySelector('.widget-background:not(:empty)') && Date.now() - start < 2500) || (bg && !bgReady))
+        return setTimeout(wait, 150);
+      var left = urls.length;
+      urls.forEach(function (u) {
+        var im = new Image();
+        im.onload = im.onerror = function () { if (--left === 0) fire(); };
+        im.src = u;
+      });
+    })();
   }
   boot();
 })();
