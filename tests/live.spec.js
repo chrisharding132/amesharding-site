@@ -1,5 +1,16 @@
 // Smoke test against the published site. Run with: npx playwright test tests/live.spec.js --project=iphone-webkit
+// LOCAL=1 serves src/ from this checkout in place of GitHub Pages: try a change on the real site before pushing.
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+
+test.beforeEach(async ({ page }) => {
+  if (!process.env.LOCAL) return;
+  await page.route(/chrisharding132\.github\.io\/amesharding-site\/src\/[^?]+/, (route) => {
+    const file = new URL(route.request().url()).pathname.split('/amesharding-site/')[1];
+    route.fulfill({ body: readFileSync(new URL('../' + file, import.meta.url)),
+      contentType: file.endsWith('.js') ? 'application/javascript' : 'image/png' });
+  });
+});
 
 async function swipe(page, dy) {
   await page.evaluate((dy) => {
@@ -25,11 +36,12 @@ test('live amesharding.com: paging, mood browser and player', async ({ page }) =
   page.on('response', (r) => { if (r.url().includes('github.io/amesharding-site')) hosted.push(r.status() + ' ' + r.url().split('/src/')[1]); });
 
   await page.goto('https://amesharding.com/', { waitUntil: 'load' });
-  await expect.poll(() => page.evaluate(() => !!window.__amesPaging), { timeout: 15000 }).toBe(true);
+  await expect.poll(() => page.evaluate(() => !!(window.__amesPaging && window.__amesPaging.ready)), { timeout: 15000 }).toBe(true);
   const isPhone = await page.evaluate(() => document.documentElement.classList.contains('isphone'));
   await page.waitForTimeout(1500);
   await swipe(page, -300);
-  await expect(page).toHaveURL(/amesharding\.com\/2/, { timeout: 5000 });
+  const swipeInfo = await page.evaluate(() => JSON.stringify(window.__amesPaging.last));
+  await expect(page, 'swipe: ' + swipeInfo).toHaveURL(/amesharding\.com\/2/, { timeout: 5000 });
 
   await expect(page.locator('#ames-mb .ames-light')).toHaveCount(28, { timeout: 15000 });
   await expect(page.locator('#ames-player .ames-group')).toHaveCount(2);
