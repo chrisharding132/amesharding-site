@@ -32,17 +32,22 @@
     '#ames-player.active .ames-idle{display:none;}',
     '#ames-player.active .ames-info{display:flex;}',
     '#ames-player.active .ames-play,#ames-player.active .ames-prog,#ames-player.active .ames-close{display:block;}',
+    // Phones: one column. While a track is loaded the panel grows upward from the bottom edge so the
+    // full title, tags + duration and all controls fit; mood.js keeps the lights clear of that height.
     '@media (max-width:760px){',
-    '  #ames-player{padding:6px 12px;flex-direction:column;align-items:stretch;gap:5px;min-height:0;}',
+    '  #ames-player{padding:8px 12px;flex-direction:column;align-items:stretch;justify-content:center;gap:6px;min-height:0;}',
+    '  #ames-player.active{position:absolute;left:0;right:0;bottom:0;height:auto;min-height:100%;justify-content:flex-end;padding:10px 12px 8px;}',
     '  #ames-player .ames-filters{flex-direction:row;justify-content:flex-start;gap:8px;}',
     '  #ames-player .ames-fbtn{font-size:8px;padding:2px 6px;letter-spacing:.1em;}',
-    '  #ames-player .ames-right{flex-direction:row;align-items:center;gap:10px;width:100%;}',
-    '  #ames-player .ames-info{max-width:none;flex:1 1 0;min-width:0;}',
-    '  #ames-player .ames-title{font-size:11px;}',
-    '  #ames-player .ames-controls{flex:0 0 auto;}',
-    '  #ames-player .ames-play{width:26px;height:26px;font-size:11px;}',
-    '  #ames-player .ames-tags{display:none;}',
-    '  #ames-player .ames-prog{flex:0 0 80px;width:80px;}', // explicit width: WebKit ignores flex-basis when sizing .ames-controls
+    '  #ames-player .ames-right{flex-direction:column;align-items:stretch;gap:5px;width:100%;flex:none;}',
+    '  #ames-player .ames-info{max-width:none;flex:none;gap:4px;}',
+    '  #ames-player .ames-title{font-size:12px;line-height:1.3;white-space:normal;text-overflow:clip;',
+    '    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;}',
+    '  #ames-player .ames-tags{display:block;font-size:8.5px;line-height:1.3;}',
+    '  #ames-player .ames-controls{flex:none;width:100%;gap:12px;}',
+    '  #ames-player .ames-play{width:28px;height:28px;font-size:11px;}',
+    // 2px bar, but an 18px-tall tap target
+    '  #ames-player .ames-prog{flex:1 1 auto;width:auto;padding:8px 0;background-clip:content-box;}',
     '}'
   ].join('\n');
 
@@ -119,7 +124,26 @@
     el.querySelector('.ames-close').onclick = function () { audio.pause(); P.track = null; sync(); };
     P.el = el;
     sync();
+    measure();
   }
+
+  // Height of the panel with a track loaded (worst case: two-line title), published for mood.js.
+  function measure() {
+    var el = P.el;
+    if (!el || !el.isConnected) return;
+    var wasActive = el.classList.contains('active'), t = q('.ames-title'), g = q('.ames-tags');
+    var oldT = t.textContent, oldG = g.textContent;
+    el.classList.add('active');
+    t.textContent = 'Measure Measure Measure Measure Measure Measure Measure Measure Measure Measure';
+    g.textContent = 'tag \u00B7 tag \u00B7 tag  \u00B7  0:00';
+    var h = el.offsetHeight;
+    el.classList.toggle('active', wasActive); t.textContent = oldT; g.textContent = oldG;
+    if (h && h !== P.expandedHeight) {
+      P.expandedHeight = h;
+      window.postMessage({ amesPlayerSize: true, height: h }, '*');
+    }
+  }
+  window.addEventListener('resize', measure);
 
   ['play', 'pause', 'ended', 'timeupdate', 'loadedmetadata'].forEach(function (ev) { audio.addEventListener(ev, sync); });
 

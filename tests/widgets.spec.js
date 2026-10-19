@@ -96,3 +96,50 @@ test('playing state keeps progress bar and close button inside the phone strip',
     expect(b.x + b.width, sel + ' right edge').toBeLessThanOrEqual(box.x + box.width);
   }
 });
+
+for (const layout of ['phone', 'desktop']) {
+  test(`lights spread out, stay inside the box and off the labels (${layout})`, async ({ page }) => {
+    await page.setViewportSize(layout === 'desktop' ? { width: 1024, height: 520 } : { width: 320, height: 568 });
+    await page.goto('/tests/harness.html?prefetch=cluster' + (layout === 'desktop' ? '&layout=desktop' : ''));
+    await expect(page.locator('#ames-mb .ames-light')).toHaveCount(28);
+    await page.waitForTimeout(600); // left/top transition
+    const r = await page.evaluate(() => {
+      const box = document.getElementById('ames-mb').getBoundingClientRect();
+      const pts = [...document.querySelectorAll('#ames-mb .ames-light')].map((e) => { const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
+      let min = 1e9; for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) min = Math.min(min, Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y));
+      const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+      return { box: [box.left, box.top, box.right, box.bottom], min, spreadX: (Math.max(...xs) - Math.min(...xs)) / box.width, spreadY: (Math.max(...ys) - Math.min(...ys)) / box.height,
+        outside: pts.filter((p) => p.x - 16 < box.left || p.x + 16 > box.right || p.y - 16 < box.top || p.y + 16 > box.bottom).length, layout: document.getElementById('ames-mb')._layout };
+    });
+    expect(r.outside, JSON.stringify(r)).toBe(0);
+    expect(r.min, 'closest pair of lights (px)').toBeGreaterThanOrEqual(30);
+    expect(r.spreadY, 'vertical spread').toBeGreaterThan(0.6);
+    if (layout === 'desktop') expect(r.spreadX, 'horizontal spread').toBeGreaterThan(0.6);
+  });
+}
+
+test('phone player shows every desktop element when playing, inside the screen', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto('/tests/harness.html?prefetch=cluster');
+  await expect(page.locator('#ames-mb .ames-light')).toHaveCount(28);
+  await page.evaluate(() => window.postMessage({ amesPlayer: true, action: 'play',
+    track: { title: 'Sister of the Lilies (Interlude) 90 BPM', duration: '0:21', tags: ['warm', 'playful', 'radio'], src: '/tests/silence.wav' } }, '*'));
+  await expect(page.locator('#ames-player')).toHaveClass(/active/);
+  const p = await page.locator('#ames-player').boundingBox();
+  expect(p.y).toBeGreaterThanOrEqual(0);
+  for (const sel of ['.ames-fbtn >> nth=0', '.ames-title', '.ames-tags', '.ames-play', '.ames-prog', '.ames-close']) {
+    const loc = page.locator('#ames-player ' + sel);
+    await expect(loc, sel).toBeVisible();
+    const b = await loc.boundingBox();
+    expect(b.x + b.width, sel + ' right').toBeLessThanOrEqual(p.x + p.width + 0.5);
+    expect(b.y + b.height, sel + ' bottom').toBeLessThanOrEqual(p.y + p.height + 0.5);
+  }
+  await expect(page.locator('#ames-player .ames-tags')).toContainText('warm');
+  await expect(page.locator('#ames-player .ames-tags')).toContainText('0:21');
+  const clipped = await page.locator('#ames-player .ames-title').evaluate((e) => e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1);
+  expect(clipped, 'title clipped').toBe(false);
+  // no light may sit under the expanded panel
+  const under = await page.evaluate((top) => [...document.querySelectorAll('#ames-mb .ames-light')]
+    .filter((e) => { const b = e.getBoundingClientRect(); return b.top + b.height / 2 + 16 > top; }).length, p.y);
+  expect(under, 'lights under the player').toBe(0);
+});

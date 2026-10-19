@@ -14,7 +14,7 @@
     '  background-image:url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.07\'/%3E%3C/svg%3E");}',
     '#ames-mb .ames-light{position:absolute;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;z-index:2;',
     '  background:radial-gradient(circle,rgba(236,182,146,.95) 0%,rgba(236,182,146,.75) 6%,rgba(236,182,146,.32) 14%,rgba(236,182,146,.1) 32%,rgba(236,182,146,0) 58%);',
-    '  transition:transform .25s ease,opacity .3s ease,filter .3s ease;}',
+    '  transition:transform .25s ease,opacity .3s ease,filter .3s ease,left .4s ease,top .4s ease;}',
     '#ames-mb .ames-light:hover{transform:scale(1.35);}',
     '#ames-mb .ames-light.sel{background:radial-gradient(circle,rgba(232,93,117,.95) 0%,rgba(232,93,117,.75) 6%,rgba(232,93,117,.32) 14%,rgba(232,93,117,.1) 32%,rgba(232,93,117,0) 58%);}',
     '@keyframes ames-drift{0%{margin-top:-30px;margin-left:-30px}25%{margin-top:-26px;margin-left:-33px}50%{margin-top:-33px;margin-left:-28px}75%{margin-top:-27px;margin-left:-26px}100%{margin-top:-30px;margin-left:-30px}}',
@@ -85,7 +85,10 @@
       var d = e.data;
       if (d && d.amesFilters) { S.filters.type = d.type || []; S.filters.tempo = d.tempo || []; S.boxes.forEach(applyFilters); }
     });
-    window.addEventListener('resize', function () { S.boxes.forEach(orient); });
+    window.addEventListener('message', function (e) {
+      if (e.data && e.data.amesPlayerSize) S.boxes.forEach(layout);
+    });
+    window.addEventListener('resize', function () { S.boxes.forEach(function (b) { orient(b); layout(b); }); });
 
     if (window.__amesTracksPromise) {
       window.__amesTracksPromise.then(function (recs) {
@@ -105,14 +108,85 @@
 
   function rnd(a, b) { return (a + Math.random() * (b - a)).toFixed(2); }
 
+  // ---- layout: spread the lights over the free space, never off-box, on labels, or under the player ----
+  // Axis-word boxes in each label image, in % of the image (measured from the PNG alpha).
+  var LABELS = {
+    l: { w: 1200, h: 633,  top: [47.9, 0.3, 53.2, 5.7], bottom: [48.0, 93.8, 53.0, 99.1], side: [[0.2, 48.7, 11.2, 51.2], [85.1, 48.7, 99.9, 51.2]] },
+    p: { w: 700,  h: 1051, top: [43.6, 0.3, 55.0, 4.3], bottom: [43.9, 95.1, 54.7, 99.0], side: [[0.4, 49.1, 24.4, 51.1], [67.3, 49.2, 99.7, 51.0]] }
+  };
+  var R = 16;      // visible radius of a light (the 46px glow fades out well before its edge)
+  var DRIFT = 10;  // ames-drift pulls a light up to 10px up/left of its spot
+
+  // Where the player's expanded top edge sits, in the box's own coordinates (Infinity if no overlap).
+  function playerLimit(box, k) {
+    var pl = document.getElementById('ames-player');
+    var P = window.__amesPlayer;
+    if (!pl || !pl.isConnected) return Infinity;
+    var b = box.getBoundingClientRect(), r = pl.getBoundingClientRect();
+    if (!r.width || r.left >= b.right || r.right <= b.left) return Infinity;
+    // the box's page may be mid-transition: measure its top relative to its page, and the player against the viewport
+    var page = box.closest('.page');
+    var boxTop = b.top - (page ? page.getBoundingClientRect().top : 0);
+    var expanded = (P && P.expandedHeight ? P.expandedHeight : pl.offsetHeight) * (r.height / (pl.offsetHeight || 1));
+    var limit = Math.min(r.bottom, innerHeight) - expanded;
+    return (limit - boxTop) / k - 8;
+  }
+
+  function layout(box) {
+    var lights = box._lights, W = box.offsetWidth, H = box.offsetHeight;
+    if (!lights || !lights.length || !W || !H) return;
+    var k = box.getBoundingClientRect().height / H || 1;   // Readymag scales the whole page
+    var L = H > W ? LABELS.p : LABELS.l;
+    var s = Math.min(W / L.w, H / L.h), ox = (W - L.w * s) / 2, oy = (H - L.h * s) / 2;
+    function rect(r) { return [ox + r[0] / 100 * L.w * s, oy + r[1] / 100 * L.h * s, ox + r[2] / 100 * L.w * s, oy + r[3] / 100 * L.h * s]; }
+    var pad = R + 6;
+    var x0 = R + DRIFT, x1 = W - R;
+    var y0 = Math.max(R + DRIFT, rect(L.top)[3] + pad);
+    var y1 = Math.min(H - R, rect(L.bottom)[1] - pad, playerLimit(box, k) - R);
+    if (y1 - y0 < 60) y1 = y0 + 60;
+    var obstacles = L.side.map(rect).map(function (o) { return [o[0] - pad, o[1] - pad, o[2] + pad, o[3] + pad]; });
+
+    // 1. stretch the data range to fill the free area (keeps every track's relative place on the map)
+    var xs = lights.map(function (l) { return l.t.x; }), ys = lights.map(function (l) { return l.t.y; });
+    var mnx = Math.min.apply(0, xs), mxx = Math.max.apply(0, xs), mny = Math.min.apply(0, ys), mxy = Math.max.apply(0, ys);
+    var pts = lights.map(function (l) {
+      return { x: x0 + (mxx > mnx ? (l.t.x - mnx) / (mxx - mnx) : 0.5) * (x1 - x0),
+               y: y0 + (mxy > mny ? (mxy - l.t.y) / (mxy - mny) : 0.5) * (y1 - y0) };
+    });
+
+    // 2. push apart anything closer than D, and out of the side labels; deterministic, so no jumping on reload
+    var D = Math.max(34, Math.min(64, Math.sqrt((x1 - x0) * (y1 - y0) / pts.length) * 0.8));
+    for (var it = 0; it < 160; it++) {
+      for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) {
+        var dx = pts[j].x - pts[i].x, dy = pts[j].y - pts[i].y, d = Math.sqrt(dx * dx + dy * dy);
+        if (d >= D) continue;
+        if (d < 0.01) { dx = Math.cos(i + j); dy = Math.sin(i + j); d = 1; }
+        var push = (D - d) / 2 / d;
+        pts[i].x -= dx * push; pts[i].y -= dy * push; pts[j].x += dx * push; pts[j].y += dy * push;
+      }
+      pts.forEach(function (p) {
+        obstacles.forEach(function (o) {
+          if (p.x > o[0] && p.x < o[2] && p.y > o[1] && p.y < o[3]) {
+            // leave by the nearest vertical edge: these labels are wide and short
+            if (p.y - o[1] < o[3] - p.y) p.y = o[1]; else p.y = o[3];
+          }
+        });
+        p.x = Math.min(x1, Math.max(x0, p.x)); p.y = Math.min(y1, Math.max(y0, p.y));
+      });
+    }
+    lights.forEach(function (l, i) {
+      l.el.style.left = (pts[i].x / W * 100).toFixed(2) + '%';
+      l.el.style.top = (pts[i].y / H * 100).toFixed(2) + '%';
+    });
+    box._layout = { W: W, H: H, x0: x0, x1: x1, y0: y0, y1: y1, D: D };
+  }
+
   // Clean rebuild: every light in the box is removed first, so dots can never double up.
   function render(box) {
     Array.prototype.forEach.call(box.querySelectorAll('.ames-light'), function (el) { el.remove(); });
     box._lights = S.tracks.map(function (t) {
       var el = document.createElement('div');
       el.className = 'ames-light';
-      el.style.left = (8 + t.x * 84) + '%';
-      el.style.top = (8 + (1 - t.y) * 84) + '%';
       el.style.animation = 'ames-drift ' + rnd(7, 12) + 's ease-in-out -' + rnd(0, 10) + 's infinite, ' +
         'ames-twinkle ' + rnd(2.5, 6) + 's ease-in-out -' + rnd(0, 5) + 's infinite';
       el.addEventListener('click', function () {
@@ -125,6 +199,7 @@
       box.appendChild(el);
       return { el: el, t: t };
     });
+    layout(box);
     applyFilters(box);
   }
 
@@ -145,6 +220,7 @@
     S.boxes.push(box);
     orient(box);
     render(box);
+    if (window.ResizeObserver) new ResizeObserver(function () { orient(box); layout(box); }).observe(box);
   }
 
   // Readymag can insert the widget after this script runs, and re-insert it on page revisits.
