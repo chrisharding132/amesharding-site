@@ -92,7 +92,14 @@
       if (d && d.amesFilters) { S.filters.type = d.type || []; S.filters.tempo = d.tempo || []; S.boxes.forEach(applyFilters); }
       if (d && d.amesPlayerSize) S.boxes.forEach(function (b) { layout(b); reveal(b); });
     });
-    window.addEventListener('resize', function () { S.boxes.forEach(layout); });
+    // the browser bar showing/hiding resizes the window and Readymag re-centres the page after a moment:
+    // lay out now and again once things have settled
+    var settle;
+    window.addEventListener('resize', function () {
+      S.boxes.forEach(layout);
+      clearTimeout(settle);
+      settle = setTimeout(function () { S.boxes.forEach(layout); }, 350);
+    });
 
     // Wait for Airtable instead of flashing the built-in list first. The built-in list is only
     // a fallback: Airtable failed, returned nothing, or took longer than 4s.
@@ -123,18 +130,20 @@
   var DRIFT = 10;  // ames-drift pulls a light up to 10px up/left of its spot
 
   // Top edge of the player's open panel, in the box's own coordinates (Infinity if it doesn't overlap).
+  // Everything is measured relative to each element's own Readymag page, so it is right even while the
+  // page is off-screen or mid-transition, and when the browser bar shows/hides and Readymag re-centres the page.
+  function pageTop(el) { var p = el.closest('.page'); return p ? p.getBoundingClientRect().top : 0; }
   function playerLimit(box, k) {
     var pl = document.getElementById('ames-player');
     var P = window.__amesPlayer;
     if (!pl || !pl.isConnected) return Infinity;
     var b = box.getBoundingClientRect(), r = pl.getBoundingClientRect();
-    if (!r.width || r.left >= b.right || r.right <= b.left) return Infinity;
-    // the box's page may be mid-transition: measure its top relative to its page, and the player against the viewport
-    var page = box.closest('.page');
-    var boxTop = b.top - (page ? page.getBoundingClientRect().top : 0);
+    if (!r.width || !r.height || r.left >= b.right || r.right <= b.left) return Infinity;
+    var bt = pageTop(box), boxTop = b.top - bt, plBottom = r.bottom - pageTop(pl);
+    // page in view: the player can also be clipped by the bottom of the screen
+    if (Math.abs(bt) < innerHeight / 2) plBottom = Math.min(plBottom, innerHeight - bt);
     var expanded = (P && P.expandedHeight ? P.expandedHeight : pl.offsetHeight) * (r.height / (pl.offsetHeight || 1));
-    var limit = Math.min(r.bottom, innerHeight) - expanded;
-    return (limit - boxTop) / k - 6;
+    return (plBottom - expanded - boxTop) / k - 6;
   }
 
   // Lights sit at their true X/Y on a fixed 0-1 scale (so adding songs never moves the others).
@@ -143,9 +152,14 @@
     var stage = box._stage, W = box.offsetWidth, HB = box.offsetHeight;
     if (!stage || !W || !HB) return;
     var k = box.getBoundingClientRect().height / HB || 1;   // Readymag scales the whole page
-    var H = Math.round(Math.max(HB * 0.6, Math.min(HB, playerLimit(box, k))));
+    // The open player covers at most the bottom ~15% of the map; a reading that claims much more is a
+    // mid-transition measurement (page sliding, browser bar moving): ignore it and measure again shortly.
+    var limit = playerLimit(box, k);
+    if (limit < HB * 0.7) { limit = HB; clearTimeout(box._retry); box._retry = setTimeout(function () { layout(box); }, 500); }
+    var H = Math.round(Math.min(HB, limit));
     stage.style.height = H + 'px';
-    var portrait = H > W, L = portrait ? LABELS.p : LABELS.l;
+    // orientation follows the widget box, never the shortened stage (a phone must never get the wide labels)
+    var portrait = HB > W, L = portrait ? LABELS.p : LABELS.l;
     var show = stage.querySelector(portrait ? '.ames-labels.p' : '.ames-labels.l');
     stage.querySelector(portrait ? '.ames-labels.l' : '.ames-labels.p').style.display = 'none';
     show.style.display = 'block';
@@ -194,7 +208,7 @@
   function reveal(box) {
     var stage = box._stage;
     if (!stage || stage.classList.contains('on') || !box._lights || !box._layout) return;
-    var img = stage.querySelector(box._layout.H > box._layout.W ? '.ames-labels.p' : '.ames-labels.l');
+    var img = stage.querySelector(box._layout.HB > box._layout.W ? '.ames-labels.p' : '.ames-labels.l');
     var playerPending = document.getElementById('ames-player') && !(window.__amesPlayer && window.__amesPlayer.expandedHeight);
     if ((!img.getAttribute('src') || !img.complete || playerPending) && Date.now() - box._mountedAt < 1500) return;
     requestAnimationFrame(function () { stage.classList.add('on'); });
@@ -247,6 +261,10 @@
     layout(box);
     render(box);
     if (window.ResizeObserver) new ResizeObserver(function () { layout(box); reveal(box); }).observe(box);
+    // re-measure whenever the Mood Browser page comes into view
+    if (window.IntersectionObserver) new IntersectionObserver(function (es) {
+      if (es.some(function (e) { return e.isIntersecting; })) { layout(box); setTimeout(function () { layout(box); }, 400); }
+    }, { threshold: [0, 0.5, 1] }).observe(box);
   }
 
   // Readymag can insert the widget after this script runs, and re-insert it on page revisits.

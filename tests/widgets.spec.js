@@ -163,3 +163,13 @@ test('phone player shows every desktop element when playing, inside the screen',
   const stageBottom = await page.evaluate(() => document.querySelector('#ames-mb .ames-stage').getBoundingClientRect().bottom);
   expect(stageBottom, 'map (incl. DARK label) ends above the open player').toBeLessThanOrEqual(p.y + 1);
 });
+
+test('a bogus player position never squashes the phone map or swaps to the wide labels', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto('/tests/harness.html?prefetch=fail&player=high');
+  await expect(page.locator('#ames-mb .ames-stage')).toHaveClass(/on/);
+  const r = await page.evaluate(() => { const b = document.getElementById('ames-mb');
+    return { H: b._layout.H, HB: b._layout.HB, labels: [...b.querySelectorAll('.ames-labels')].find((i) => getComputedStyle(i).display !== 'none').className }; });
+  expect(r.labels).toContain(' p');
+  expect(r.H).toBe(r.HB);
+});

@@ -7,6 +7,8 @@
 <div class="w" id="w-mb" style="left:15px;top:20px;width:291px;height:439px"><div id="ames-mb"></div></div>
 <div class="w" id="w-pl" style="left:0;bottom:0;width:320px;height:78px"><div id="ames-player"></div></div>
 <script>
+  // ?player=high: a bogus mid-transition position, overlapping most of the map
+  if (new URLSearchParams(location.search).get('player') === 'high') document.getElementById('w-pl').style.cssText = 'left:0;top:120px;width:320px;height:78px';
   if (new URLSearchParams(location.search).get('layout') === 'desktop') {
     document.getElementById('w-mb').style.cssText = 'left:81px;top:30px;width:858px;height:379px';
     document.getElementById('w-pl').style.cssText = 'left:0;top:451px;width:1023px;height:49px';
