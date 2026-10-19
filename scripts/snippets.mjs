@@ -8,7 +8,19 @@ if (!/^https:\/\//.test(base)) { console.error('usage: node scripts/snippets.mjs
 const loader = (file) => `<script>(function(){var s=document.createElement('script');` +
   `s.src='${base}${file}?v='+Math.floor(Date.now()/6e4);document.head.appendChild(s);})();</script>`;
 
+const img = (f) => `${base}assets/${f}`;
 const out = {
+  'head-code.html': `<!-- AMES HARDING — SHARED BACKGROUND + EMAIL LINK COLOUR.
+Settings -> Code -> <HEAD>. One background image for every page (instead of a copy per page),
+phone-sized on portrait screens; it starts downloading before anything else. -->
+<link rel="preload" as="image" href="${img('bg-portrait.jpg')}" media="(max-aspect-ratio: 1/1)">
+<link rel="preload" as="image" href="${img('bg-landscape.jpg')}" media="(min-aspect-ratio: 1/1)">
+<style>
+.widget-background{background-image:url("${img('bg-landscape.jpg')}");background-size:cover;background-position:50% 50%;background-repeat:no-repeat}
+@media (max-aspect-ratio:1/1){.widget-background{background-image:url("${img('bg-portrait.jpg')}")}}
+a[href^="mailto:"],a[href^="mailto:"] *{color:inherit!important;text-decoration:none!important}
+</style>
+`,
   'settings-code.html': `<!-- AMES HARDING — MOBILE VERTICAL PAGING loader.
 Settings -> Code -> Before </body>: replace the whole old "MOBILE VERTICAL PAGING" <style> + <script> with this.
 Leave the TRACK PREFETCH block where it is (it holds the Airtable token, which stays out of the public repo). -->

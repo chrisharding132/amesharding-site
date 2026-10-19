@@ -1,0 +1,10 @@
+<!-- AMES HARDING — SHARED BACKGROUND + EMAIL LINK COLOUR.
+Settings -> Code -> <HEAD>. One background image for every page (instead of a copy per page),
+phone-sized on portrait screens; it starts downloading before anything else. -->
+<link rel="preload" as="image" href="https://chrisharding132.github.io/amesharding-site/src/assets/bg-portrait.jpg" media="(max-aspect-ratio: 1/1)">
+<link rel="preload" as="image" href="https://chrisharding132.github.io/amesharding-site/src/assets/bg-landscape.jpg" media="(min-aspect-ratio: 1/1)">
+<style>
+.widget-background{background-image:url("https://chrisharding132.github.io/amesharding-site/src/assets/bg-landscape.jpg");background-size:cover;background-position:50% 50%;background-repeat:no-repeat}
+@media (max-aspect-ratio:1/1){.widget-background{background-image:url("https://chrisharding132.github.io/amesharding-site/src/assets/bg-portrait.jpg")}}
+a[href^="mailto:"],a[href^="mailto:"] *{color:inherit!important;text-decoration:none!important}
+</style>

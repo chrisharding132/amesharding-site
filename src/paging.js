@@ -34,6 +34,15 @@
   ].join('\n');
   document.head.appendChild(st);
 
+  // The Readymag link behind the email text is missing its final "m" (gmail.co): open the right address.
+  var EMAIL = 'ameshardingmusic@gmail.com';
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href^="mailto:"]');
+    if (!a || a.getAttribute('href') === 'mailto:' + EMAIL || !/ameshardingmusic@gmail\.co$/.test(a.getAttribute('href'))) return;
+    e.preventDefault(); e.stopPropagation();
+    location.href = 'mailto:' + EMAIL;
+  }, true);
+
   // Readymag applies UA classes after load, so check .isphone live inside the handlers.
   function isPhone() { return document.documentElement.classList.contains('isphone'); }
 
