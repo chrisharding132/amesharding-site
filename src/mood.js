@@ -22,6 +22,13 @@
     // glide only for later re-layouts (rotation, address bar), never on first placement
     '#ames-mb .ames-stage.on .ames-light{transition:transform .25s ease,opacity .3s ease,filter .3s ease,left .4s ease,top .4s ease;}',
     '#ames-mb .ames-light:hover{transform:scale(1.35);}',
+    // loading ring + playing pulse, drawn around the light without touching its drift/twinkle animation
+    '#ames-mb .ames-light::after{content:"";position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;box-sizing:border-box;opacity:0;transition:opacity .25s ease;}',
+    '#ames-mb .ames-light.loading::after{opacity:1;border:1.5px solid rgba(240,232,218,.2);border-top-color:rgba(240,232,218,.95);animation:ames-ring .9s linear infinite;}',
+    '#ames-mb .ames-light.playing::after{opacity:1;border:1px solid rgba(232,93,117,.7);animation:ames-ping 1.8s ease-out infinite;}',
+    '@keyframes ames-ring{to{transform:rotate(360deg)}}',
+    '@keyframes ames-ping{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.6);opacity:0}}',
+    '@media (prefers-reduced-motion:reduce){#ames-mb .ames-light::after{animation:none!important}}',
     '#ames-mb .ames-light.sel{background:radial-gradient(circle,rgba(232,93,117,.95) 0%,rgba(232,93,117,.75) 6%,rgba(232,93,117,.32) 14%,rgba(232,93,117,.1) 32%,rgba(232,93,117,0) 58%);}',
     '@keyframes ames-drift{0%{margin-top:-30px;margin-left:-30px}25%{margin-top:-26px;margin-left:-33px}50%{margin-top:-33px;margin-left:-28px}75%{margin-top:-27px;margin-left:-26px}100%{margin-top:-30px;margin-left:-30px}}',
     '@keyframes ames-twinkle{0%,100%{opacity:1}50%{opacity:.72}}',
@@ -91,6 +98,7 @@
       var d = e.data;
       if (d && d.amesFilters) { S.filters.type = d.type || []; S.filters.tempo = d.tempo || []; S.boxes.forEach(applyFilters); }
       if (d && d.amesPlayerSize) S.boxes.forEach(function (b) { layout(b); reveal(b); });
+      if (d && d.amesPlayerState) S.boxes.forEach(function (b) { showState(b, d.amesPlayerState, d.src); });
     });
     // the browser bar showing/hiding resizes the window and Readymag re-centres the page after a moment:
     // lay out now and again once things have settled
@@ -224,6 +232,12 @@
       el.className = 'ames-light';
       el.style.animation = 'ames-drift ' + rnd(7, 12) + 's ease-in-out -' + rnd(0, 10) + 's infinite, ' +
         'ames-twinkle ' + rnd(2.5, 6) + 's ease-in-out -' + rnd(0, 5) + 's infinite';
+      // start fetching the track as soon as a finger lands or the cursor settles on the light
+      var prime = function () { window.postMessage({ amesPlayer: true, action: 'prime', src: t.src }, '*'); };
+      var hoverTimer;
+      el.addEventListener('pointerdown', prime);
+      el.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') hoverTimer = setTimeout(prime, 120); });
+      el.addEventListener('pointerleave', function () { clearTimeout(hoverTimer); });
       el.addEventListener('click', function () {
         var s = stage.querySelector('.ames-light.sel');
         if (s) s.classList.remove('sel');
@@ -237,6 +251,16 @@
     layout(box);
     applyFilters(box);
     reveal(box);
+  }
+
+  // ring while a track loads, pulse while it plays; the selected light keeps its colour when stopped
+  function showState(box, st, src) {
+    (box._lights || []).forEach(function (l) {
+      var me = l.t.src === src;
+      l.el.classList.toggle('loading', me && st === 'loading');
+      l.el.classList.toggle('playing', me && st === 'playing');
+      if (st === 'stopped') l.el.classList.remove('sel');
+    });
   }
 
   function applyFilters(box) {

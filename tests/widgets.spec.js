@@ -191,3 +191,33 @@ for (const layout of ['phone', 'desktop']) {
     else expect(r.idleLeft, 'prompt aligned with the left edge').toBeLessThan(16);
   });
 }
+
+test('copied clips play from GitHub, anything else falls back to Dropbox', async ({ page }) => {
+  await page.goto('/tests/harness.html');
+  await page.waitForFunction(() => window.__amesPlayer && window.__amesPlayer.resolve('x/Hummin-Intro-140BPM.mp3?raw=1').includes('/audio/'));
+  const r = await page.evaluate(() => [
+    window.__amesPlayer.resolve('https://www.dropbox.com/scl/fi/abc/Hummin-Intro-140BPM.mp3?rlkey=1&raw=1'),
+    window.__amesPlayer.resolve('https://www.dropbox.com/scl/fi/abc/Brand-New-Song.mp3?rlkey=1&raw=1'),
+  ]);
+  expect(r[0]).toMatch(/\/src\/audio\/Hummin-Intro-140BPM\.mp3$/);
+  expect(r[1]).toContain('dropbox.com');
+  expect((await page.request.get('/src/audio/Hummin-Intro-140BPM.mp3')).status()).toBe(200);
+});
+
+test('tapping a light shows loading then playing, and the now-playing bar appears away from the player', async ({ page }) => {
+  await page.goto('/tests/harness.html');
+  await expect(page.locator('#ames-mb .ames-light')).toHaveCount(3);
+  const light = page.locator('#ames-mb .ames-light').nth(1);
+  await light.dispatchEvent('pointerdown');
+  await light.click({ force: true });
+  await expect(light).toHaveClass(/playing/, { timeout: 5000 });
+  await expect(page.locator('#ames-mini')).not.toHaveClass(/\bon\b/);           // full player visible: no bar
+  await page.evaluate(() => { document.getElementById('w-pl').style.left = '-2000px'; });   // full player off-screen
+  await expect(page.locator('#ames-mini')).toHaveClass(/\bon\b/, { timeout: 2000 });
+  await expect(page.locator('#ames-mini .t')).toContainText('Two');
+  await page.locator('#ames-mini .b:not(.x)').click();                            // pause
+  await expect(page.locator('#ames-mini')).not.toHaveClass(/playing/);
+  await page.locator('#ames-mini .x').click();                                    // stop
+  await expect(page.locator('#ames-mini')).not.toHaveClass(/\bon\b/);
+  await expect(light).not.toHaveClass(/playing/);
+});

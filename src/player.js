@@ -36,6 +36,23 @@
     '#ames-player.active .ames-idle{display:none;}',
     '#ames-player.active .ames-info{display:flex;}',
     '#ames-player.active .ames-play,#ames-player.active .ames-prog,#ames-player.active .ames-close{display:block;}',
+    '#ames-player.loading .ames-play{animation:ames-spin 1s linear infinite;background:none;border:1px solid rgba(240,232,218,.25);border-top-color:#F0E8DA;color:transparent;}',
+    '@keyframes ames-spin{to{transform:rotate(360deg)}}',
+    // now-playing bar: every page except the one showing the full player
+    "#ames-mini{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));z-index:10002;transform:translate(-50%,20px);opacity:0;pointer-events:none;",
+    "  display:flex;align-items:center;gap:12px;max-width:min(520px,calc(100vw - 28px));padding:8px 10px 8px 14px;border-radius:999px;box-sizing:border-box;",
+    "  background:rgba(52,48,96,.5);-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3);border:1px solid rgba(240,232,218,.18);",
+    "  font-family:'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;transition:opacity .35s ease,transform .35s ease;}",
+    '#ames-mini.on{opacity:1;transform:translate(-50%,0);pointer-events:auto;}',
+    '#ames-mini .dot{width:8px;height:8px;border-radius:50%;flex:none;background:#E85D75;box-shadow:0 0 10px rgba(232,93,117,.9);}',
+    '#ames-mini.playing .dot{animation:ames-pulse 1.6s ease-in-out infinite;}',
+    '@keyframes ames-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.6);opacity:.55}}',
+    '#ames-mini .t{flex:1;min-width:0;border:0;background:none;padding:0;text-align:left;cursor:pointer;color:#F0E8DA;font:300 12px/1.2 inherit;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+    '#ames-mini .t small{display:block;color:rgba(240,232,218,.55);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;margin-top:2px;}',
+    '#ames-mini button.b{flex:none;width:30px;height:30px;border-radius:50%;border:0;cursor:pointer;color:#F0E8DA;background:rgba(240,232,218,.1);font-size:11px;}',
+    '#ames-mini button.x{background:none;color:rgba(240,232,218,.6);font-size:13px;}',
+    '#ames-mini.loading button.b{animation:ames-spin 1s linear infinite;background:none;border:1px solid rgba(240,232,218,.25);border-top-color:#F0E8DA;color:transparent;}',
+    '@media (prefers-reduced-motion:reduce){#ames-mini.playing .dot,#ames-mini.loading button.b,#ames-player.loading .ames-play{animation:none}}',
     // desktop idle prompt: centred on the whole player, not just the middle column
     '#ames-player:not(.active) .ames-idle{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;}'
   ].join('\n');
@@ -72,6 +89,37 @@
   var audio = new Audio();
   audio.preload = 'none';
 
+  // Clips are copied to GitHub Pages (src/audio/, listed in manifest.json): ~0.1s to first byte instead of
+  // Dropbox's 1-1.5s. A track that isn't copied yet (just added in Airtable) still plays from Dropbox.
+  var HOSTED = {};
+  fetch(BASE + 'audio/manifest.json').then(function (r) { return r.json(); }).then(function (m) {
+    (m.files || []).forEach(function (f) { HOSTED[f] = true; });
+  }).catch(function () {});
+  function resolve(src) {
+    var m = /\/([^/?#]+\.mp3)(?:[?#]|$)/i.exec(src || '');
+    return m && HOSTED[m[1]] ? BASE + 'audio/' + m[1] : src;
+  }
+  P.resolve = resolve;
+
+  // Start fetching a track the moment a light is touched or hovered, so the click plays almost instantly.
+  var primed = null;
+  function prime(src) {
+    var url = resolve(src);
+    if (!url || (primed && primed.dataset.url === url) || (audio.dataset.url === url)) return;
+    primed = new Audio();
+    primed.preload = 'auto';
+    primed.dataset.url = url;
+    primed.src = url;
+    primed.load();
+  }
+  P.prime = prime;
+  function state(s) {
+    P.state = s;
+    window.postMessage({ amesPlayerState: s, src: P.track && P.track.src }, '*');
+    if (P.el) P.el.classList.toggle('loading', s === 'loading');
+    syncMini();
+  }
+
   var st = document.createElement('style');
   st.id = 'ames-player-css';
   st.textContent = CSS;
@@ -81,6 +129,7 @@
   function playing() { return !audio.paused && !audio.ended; }
 
   function sync() {
+    syncMini();
     if (!P.el) return;
     P.el.classList.toggle('active', !!P.track);
     var b = q('.ames-play');
@@ -126,13 +175,13 @@
       });
       fw.appendChild(grp);
     });
-    el.querySelector('.ames-play').onclick = function () { if (playing()) audio.pause(); else audio.play().catch(sync); };
+    el.querySelector('.ames-play').onclick = function () { P.toggle(); };
     el.querySelector('.ames-prog').onclick = function (e) {
       if (!audio.duration) return;
       var r = this.getBoundingClientRect();
       audio.currentTime = ((e.clientX - r.left) / r.width) * audio.duration;
     };
-    el.querySelector('.ames-close').onclick = function () { audio.pause(); P.track = null; sync(); };
+    el.querySelector('.ames-close').onclick = function () { P.stop(); };
     if (el.parentElement) { el.parentElement.style.containerType = 'inline-size'; el.parentElement.style.containerName = 'amesplayer'; }
     P.el = el;
     sync();
@@ -157,29 +206,100 @@
   }
   window.addEventListener('resize', measure);
 
-  ['play', 'pause', 'ended', 'timeupdate', 'loadedmetadata'].forEach(function (ev) { audio.addEventListener(ev, sync); });
+  var EVENTS = ['play', 'pause', 'ended', 'timeupdate', 'loadedmetadata'];
+  function wire(a) {
+    EVENTS.forEach(function (ev) { a.addEventListener(ev, sync); });
+    a.addEventListener('waiting', function () { if (a === audio && P.track) state('loading'); });
+    a.addEventListener('playing', function () { if (a === audio) state('playing'); });
+    a.addEventListener('pause', function () { if (a === audio && P.track) state('paused'); });
+    a.addEventListener('ended', function () { if (a === audio) state('ended'); });
+  }
+  wire(audio);
+
+  function playTrack(track) {
+    var url = resolve(track.src);
+    P.track = track;
+    if (!audio.paused) audio.pause();
+    if (primed && primed.dataset.url === url) {
+      audio = primed; primed = null; wire(audio);       // already buffering: use it
+    } else if (audio.dataset.url !== url) {
+      audio.dataset.url = url; audio.src = url;
+    } else {
+      audio.currentTime = 0;
+    }
+    audio.preload = 'auto';
+    state('loading');
+    audio.play().then(function () { if (!audio.paused) state('playing'); }, function () { state('paused'); });
+    sync();
+  }
+  P.toggle = function () { if (playing()) audio.pause(); else if (P.track) audio.play().catch(sync); };
+  P.stop = function () { audio.pause(); P.track = null; state('stopped'); sync(); };
 
   window.addEventListener('message', function (e) {
     var d = e.data;
-    if (!d || !d.amesPlayer || d.action !== 'play' || !d.track) return;
-    P.track = d.track;
-    audio.src = d.track.src;
-    audio.play().catch(sync);
-    sync();
+    if (!d || !d.amesPlayer) return;
+    if (d.action === 'prime' && d.src) prime(d.src);
+    if (d.action === 'play' && d.track) playTrack(d.track);
   });
 
-  // Pause when the visitor leaves the page (Readymag pages are client-side routes).
-  var pageHref = location.href;
-  function pauseNow() { if (playing()) audio.pause(); }
-  setInterval(function () {
-    if (location.href !== pageHref) { pageHref = location.href; pauseNow(); return; }
-    if (!playing()) return;
+  // Music keeps playing across pages. Away from the full player, a now-playing bar shows the track,
+  // play/pause and close; tapping the title steps back to the Mood Browser page.
+  var mini = null;
+  function fullPlayerOnScreen() {
     var r = P.el && P.el.isConnected ? P.el.getBoundingClientRect() : null;
-    var onScreen = r && r.width > 0 && r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
-    if (!onScreen) pauseNow();
-  }, 400);
-  window.addEventListener('popstate', pauseNow);
-  window.addEventListener('hashchange', pauseNow);
+    return !!(r && r.width > 0 && r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth);
+  }
+  function buildMini() {
+    mini = document.createElement('div');
+    mini.id = 'ames-mini';
+    mini.setAttribute('role', 'region');
+    mini.setAttribute('aria-label', 'Now playing');
+    mini.innerHTML = '<span class="dot"></span><button class="t" type="button"></button>' +
+      '<button class="b" type="button" aria-label="Pause">&#10074;&#10074;</button>' +
+      '<button class="b x" type="button" aria-label="Stop">&#10005;</button>';
+    mini.querySelector('.t').onclick = goToPlayer;
+    mini.querySelector('.b').onclick = function () { P.toggle(); };
+    mini.querySelector('.x').onclick = function () { P.stop(); };
+    document.body.appendChild(mini);
+  }
+  function syncMini() {
+    if (!document.body) return;
+    if (!mini) buildMini();
+    var show = !!P.track && P.state !== 'stopped' && !fullPlayerOnScreen();
+    mini.classList.toggle('on', show);
+    mini.classList.toggle('playing', playing());
+    mini.classList.toggle('loading', P.state === 'loading');
+    if (!P.track) return;
+    var t = mini.querySelector('.t');
+    if (t.dataset.title !== P.track.title) {
+      t.dataset.title = P.track.title;
+      t.innerHTML = '';
+      t.appendChild(document.createTextNode(P.track.title));
+      var sm = document.createElement('small'); sm.textContent = 'Now playing \u00B7 tap for the map'; t.appendChild(sm);
+    }
+    var b = mini.querySelector('.b:not(.x)');
+    b.innerHTML = playing() ? '&#10074;&#10074;' : '&#9654;';
+    b.setAttribute('aria-label', playing() ? 'Pause' : 'Play');
+  }
+  P.syncMini = syncMini;
+  // step page by page to the page holding the full player (Readymag's own transitions)
+  function goToPlayer() {
+    var mag = window.RM && RM.viewerRouter && RM.viewerRouter.mag;
+    var home = P.el && P.el.closest('.page');
+    if (!mag || !mag.currentPage) return;
+    var target = P.homePage || 2, tries = 0;
+    (function step() {
+      var n = mag.currentPage.num;
+      if (n === target || tries++ > 8) return;
+      if (n > target) mag.goPrevPage(); else mag.goNextPage();
+      setTimeout(step, ((mag.getPageTransitionTime && (function () { try { return mag.getPageTransitionTime(); } catch (e) { return 550; } })()) || 550) + 120);
+    })();
+  }
+  setInterval(function () {
+    var mag = window.RM && RM.viewerRouter && RM.viewerRouter.mag;
+    if (fullPlayerOnScreen() && mag && mag.currentPage) P.homePage = mag.currentPage.num;   // remember where the full player lives
+    syncMini();
+  }, 300);
 
   P.scan = function () { Array.prototype.forEach.call(document.querySelectorAll('#ames-player'), mount); };
   P.scan();
