@@ -39,27 +39,42 @@ for (const [name, d] of Object.entries({ phone: devices['iPhone 13'], desktop: {
         return { bg: getComputedStyle(w).backgroundImage.split('/').pop().slice(0, 30), mailColor: getComputedStyle(a).color, mailText: getComputedStyle(a.parentElement).color,
           underline: getComputedStyle(a).backgroundImage !== 'none', visibleBg: top ? getComputedStyle(top).backgroundImage.split('/').pop().slice(0, 22) : 'none' };
       });
-      // clicking the email must open the corrected address
+      // email click: phones open the mail app; desktop copies the address and shows the note
+      if (name === 'desktop') await page.context().grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
       const opened = await page.evaluate(() => new Promise((res) => {
         window.__amesPaging.openEmail = res;
         const a = document.querySelector('a[href^="mailto"]'); if (!a) return res('no link');
-        // a correct mailto link is left to the browser: report its address instead of navigating
-        a.addEventListener('click', (e) => { e.preventDefault(); res(a.getAttribute('href')); }, { once: true });
-        setTimeout(() => res('nothing'), 1000);
         a.click();
+        setTimeout(() => {
+          const t = document.getElementById('ames-toast');
+          res(window.__amesPaging.desktopEmail ? 'toast:' + (t && t.classList.contains('on') ? t.textContent : 'none') : 'nothing');
+        }, 600);
       }));
-      console.log('HB', name, JSON.stringify({ ...r, opened, bgDownloads: bgReqs }));
+      const phoneMeta = await page.evaluate(() => ({ viewport: document.querySelector('meta[name=viewport]').content, touch: getComputedStyle(document.querySelector('.mag')).touchAction, isPhone: document.documentElement.classList.contains('isphone') }));
+      console.log('HB', name, JSON.stringify({ ...r, opened, phoneMeta, bgDownloads: bgReqs }));
       expect(r.mailColor, 'email link colour').toBe(r.mailText);
       expect(r.underline).toBe(false);
       expect(r.visibleBg, 'image on the visible background layer').toMatch(/bg-(portrait|landscape)\.jpg/);
-      expect(opened).toBe('mailto:ameshardingmusic@gmail.com');
+      if (phoneMeta.isPhone) {
+        expect(opened).toBe('mailto:ameshardingmusic@gmail.com');
+        expect(phoneMeta.viewport, 'no zoom-in on form fields').toContain('maximum-scale=1');
+        expect(['pinch-zoom', 'auto', 'manipulation'], 'pinch never blocked, so a zoomed page can be zoomed back out').toContain(phoneMeta.touch);
+      } else {
+        expect(opened, 'desktop click copies + shows the note').toContain('Email copied');
+      }
       expect(bgReqs.length, 'background downloads').toBe(1);
       if (process.env.SIMULATE) {
         expect(r.bg).toMatch(/bg-(portrait|landscape)\.jpg/);
         expect(bgReqs.length, 'background downloads').toBe(1);
         expect(r.mailColor).toBe(r.mailText);
         expect(r.underline).toBe(false);
+        if (phoneMeta.isPhone) {
         expect(opened).toBe('mailto:ameshardingmusic@gmail.com');
+        expect(phoneMeta.viewport, 'no zoom-in on form fields').toContain('maximum-scale=1');
+        expect(['pinch-zoom', 'auto', 'manipulation'], 'pinch never blocked, so a zoomed page can be zoomed back out').toContain(phoneMeta.touch);
+      } else {
+        expect(opened, 'desktop click copies + shows the note').toContain('Email copied');
+      }
       }
     });
   });

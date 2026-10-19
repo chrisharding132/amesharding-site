@@ -173,3 +173,21 @@ test('a bogus player position never squashes the phone map or swaps to the wide 
   expect(r.labels).toContain(' p');
   expect(r.H).toBe(r.HB);
 });
+
+for (const layout of ['phone', 'desktop']) {
+  test(`player idle: type filters left, tempo filters right-justified (${layout})`, async ({ page }) => {
+    await page.setViewportSize(layout === 'desktop' ? { width: 1024, height: 520 } : { width: 320, height: 568 });
+    await page.goto('/tests/harness.html' + (layout === 'desktop' ? '?layout=desktop' : ''));
+    await expect(page.locator('#ames-player .ames-group')).toHaveCount(2);
+    const r = await page.evaluate(() => {
+      const p = document.getElementById('ames-player').getBoundingClientRect();
+      const [t, m] = [...document.querySelectorAll('#ames-player .ames-group')].map((g) => g.getBoundingClientRect());
+      const idle = document.querySelector('#ames-player .ames-idle').getBoundingClientRect();
+      return { leftGap: t.left - p.left, rightGap: p.right - m.right, idleCenterOff: (idle.left + idle.width / 2) - (p.left + p.width / 2), idleLeft: idle.left - p.left };
+    });
+    expect(r.leftGap, 'type filters at the left padding').toBeLessThan(26);
+    expect(r.rightGap, 'tempo filters at the right padding').toBeLessThan(26);
+    if (layout === 'desktop') expect(Math.abs(r.idleCenterOff), 'prompt centred').toBeLessThan(40);
+    else expect(r.idleLeft, 'prompt aligned with the left edge').toBeLessThan(16);
+  });
+}

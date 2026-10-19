@@ -5,20 +5,24 @@
   var BASE = (document.currentScript && document.currentScript.src || '').replace(/[^/]*$/, '');
 
   var CSS = [
-    '#ames-player{position:relative;width:100%;height:100%;min-height:52px;display:flex;align-items:center;gap:16px;padding:6px 22px;box-sizing:border-box;',
+    // grid: type filters | prompt or track | tempo filters (phones: two rows, see media query)
+    '#ames-player{position:relative;width:100%;height:100%;min-height:52px;display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"type mid tempo";align-items:center;column-gap:24px;padding:6px 22px;box-sizing:border-box;',
     '  background:rgba(52,48,96,.22);-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3);',
     '  border-top:1px solid rgba(240,232,218,.14);overflow:hidden;flex-wrap:wrap;',
     "  font-family:'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;}",
     '#ames-player .ames-grain{position:absolute;inset:0;pointer-events:none;opacity:.8;background:url("' + BASE + 'assets/grain.png") repeat;background-size:64px 64px;}',
     '#ames-player>*:not(.ames-grain){position:relative;}',
-    '#ames-player .ames-filters{display:flex;gap:14px;flex-shrink:0;align-items:center;flex-wrap:wrap;}',
+    '#ames-player .ames-filters{display:contents;}',
+    '#ames-player .ames-group[data-key=type]{grid-area:type;justify-self:start;}',
+    '#ames-player .ames-group[data-key=tempo]{grid-area:tempo;justify-self:end;}',
     '#ames-player .ames-group{display:flex;border:1px solid rgba(240,232,218,.28);border-radius:999px;overflow:hidden;}',
     '#ames-player .ames-fbtn{border:none;background:none;cursor:pointer;font-family:inherit;font-weight:300;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;',
     '  color:rgba(240,232,218,.55);padding:4px 10px;transition:all .25s ease;}',
     '#ames-player .ames-fbtn+.ames-fbtn{border-left:1px solid rgba(240,232,218,.22);}',
     '#ames-player .ames-fbtn:hover{color:#F0E8DA;}',
     '#ames-player .ames-fbtn.on{background:rgba(232,93,117,.35);color:#F0E8DA;text-shadow:0 0 10px rgba(232,93,117,.8);}',
-    '#ames-player .ames-right{display:flex;align-items:center;gap:16px;flex:1;min-width:0;}',
+    '#ames-player .ames-right{grid-area:mid;display:flex;align-items:center;justify-content:center;gap:16px;min-width:0;}',
+    '#ames-player.active .ames-right{justify-content:flex-start;}',
     '#ames-player .ames-idle{color:rgba(240,232,218,.75);font-weight:300;font-size:10px;letter-spacing:.2em;text-transform:uppercase;}',
     '#ames-player .ames-info{display:none;flex-direction:column;gap:3px;min-width:0;flex-shrink:0;max-width:45%;}',
     '#ames-player .ames-title{color:#E85D75;font-size:12px;font-weight:300;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
@@ -32,14 +36,19 @@
     '#ames-player.active .ames-idle{display:none;}',
     '#ames-player.active .ames-info{display:flex;}',
     '#ames-player.active .ames-play,#ames-player.active .ames-prog,#ames-player.active .ames-close{display:block;}',
-    // Phones: one column. While a track is loaded the panel grows upward from the bottom edge so the
-    // full title, tags + duration and all controls fit; mood.js keeps the lights clear of that height.
-    '@media (max-width:760px){',
-    '  #ames-player{padding:8px 12px;flex-direction:column;align-items:stretch;justify-content:center;gap:6px;min-height:0;}',
-    '  #ames-player.active{position:absolute;left:0;right:0;bottom:0;height:auto;min-height:100%;justify-content:flex-end;padding:10px 12px 8px;}',
-    '  #ames-player .ames-filters{flex-direction:row;justify-content:flex-start;gap:8px;}',
+    // desktop idle prompt: centred on the whole player, not just the middle column
+    '#ames-player:not(.active) .ames-idle{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;}'
+  ].join('\n');
+
+  // Phone layout: two rows (type | tempo filters, then prompt or track). While a track is loaded the panel grows
+  // upward from the bottom edge so the full title, tags + duration and all controls fit; mood.js keeps the
+  // lights clear of that height. Chosen by the player's own width (container query), so it is right however the page is
+  // scaled (Readymag preview, tablets); the window media query is the fallback for older browsers.
+  var PHONE = [
+    '  #ames-player{padding:8px 12px;grid-template-columns:1fr auto;grid-template-areas:"type tempo" "mid mid";align-content:center;row-gap:8px;column-gap:8px;min-height:0;}',
+    '  #ames-player.active{position:absolute;left:0;right:0;bottom:0;height:auto;min-height:100%;align-content:end;padding:10px 12px 8px;}',
     '  #ames-player .ames-fbtn{font-size:8px;padding:2px 6px;letter-spacing:.1em;}',
-    '  #ames-player .ames-right{flex-direction:column;align-items:stretch;gap:5px;width:100%;flex:none;}',
+    '  #ames-player .ames-right{flex-direction:column;align-items:stretch;justify-content:flex-start;gap:5px;}',
     '  #ames-player .ames-info{max-width:none;flex:none;gap:4px;}',
     '  #ames-player .ames-title{font-size:12px;line-height:1.3;white-space:normal;text-overflow:clip;',
     '    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;}',
@@ -47,9 +56,10 @@
     '  #ames-player .ames-controls{flex:none;width:100%;gap:12px;}',
     '  #ames-player .ames-play{width:28px;height:28px;font-size:11px;}',
     // 2px bar, but an 18px-tall tap target
-    '  #ames-player .ames-prog{flex:1 1 auto;width:auto;padding:8px 0;background-clip:content-box;}',
-    '}'
+    '  #ames-player .ames-prog{flex:1 1 auto;width:auto;padding:8px 0;background-clip:content-box;}'
   ].join('\n');
+  CSS += '\n@media (max-width:760px){' + PHONE + '#ames-player:not(.active) .ames-idle{position:static;transform:none;}}\n@container amesplayer (max-width:600px){' + PHONE +
+    '#ames-player:not(.active) .ames-idle{position:static;transform:none;}}';
 
   var GROUPS = [
     { key: 'type',  opts: [['vocal', 'Vox'], ['vocal-nolyrics', 'Vox (no lyrics)'], ['instrumental', 'Inst']] },
@@ -100,6 +110,7 @@
     GROUPS.forEach(function (g) {
       var grp = document.createElement('div');
       grp.className = 'ames-group';
+      grp.dataset.key = g.key;
       g.opts.forEach(function (o) {
         var b = document.createElement('button');
         b.className = 'ames-fbtn';
@@ -122,6 +133,7 @@
       audio.currentTime = ((e.clientX - r.left) / r.width) * audio.duration;
     };
     el.querySelector('.ames-close').onclick = function () { audio.pause(); P.track = null; sync(); };
+    if (el.parentElement) { el.parentElement.style.containerType = 'inline-size'; el.parentElement.style.containerName = 'amesplayer'; }
     P.el = el;
     sync();
     measure();

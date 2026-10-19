@@ -20,11 +20,11 @@ for (const [name, dev] of Object.entries(SCREENS)) {
       await expect(page.locator('#ames-mb .ames-light')).toHaveCount(28, { timeout: 20000 });
       await page.waitForTimeout(1200);
       const slug = name.replace(/\W+/g, '-');
-      await page.screenshot({ path: `test-results/layout-${slug}-idle.png` });
+      await page.screenshot({ path: `audit-results/layout-${slug}-idle.png` });
       await page.locator('#ames-mb .ames-light').nth(10).dispatchEvent('click');
       await expect(page.locator('#ames-player')).toHaveClass(/active/);
       await page.waitForTimeout(500);
-      await page.screenshot({ path: `test-results/layout-${slug}-playing.png` });
+      await page.screenshot({ path: `audit-results/layout-${slug}-playing.png` });
       const r = await page.evaluate(() => {
         const pl = document.getElementById('ames-player').getBoundingClientRect();
         const pts = [...document.querySelectorAll('#ames-mb .ames-light')].map((e) => { const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });

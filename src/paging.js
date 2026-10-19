@@ -10,7 +10,7 @@
   // lock native free-scroll on the phone build; pages advance only via swipes
   st.textContent = [
     '.isphone body{overscroll-behavior:none;}',
-    '.isphone .mag.viewer-type-vertical,.isphone .mag.viewer-type-vertical .mag-pages-container{touch-action:none;}',
+    '.isphone .mag.viewer-type-vertical,.isphone .mag.viewer-type-vertical .mag-pages-container{touch-action:pinch-zoom;}',
     // Readymag's bottom arrow sat on top of the Mood Player; the rail + hint below replace it on phones.
     '.isphone .navigation-arrow{display:none!important;}',
     '#ames-nav{display:none;}',
@@ -30,25 +30,65 @@
     '#ames-hint svg{width:14px;height:14px;animation:ames-bob 1.8s ease-in-out infinite;}',
     '#ames-hint.off{opacity:0;pointer-events:none;}',
     '@keyframes ames-bob{0%,100%{transform:translateY(3px)}50%{transform:translateY(-4px)}}',
-    '@media (prefers-reduced-motion:reduce){#ames-hint svg{animation:none}}'
+    '@media (prefers-reduced-motion:reduce){#ames-hint svg{animation:none}}',
+    // "email copied" note (desktop)
+    "#ames-toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,12px);z-index:10001;opacity:0;pointer-events:none;",
+    "  display:flex;align-items:center;gap:14px;padding:10px 18px;border-radius:999px;border:1px solid rgba(240,232,218,.22);",
+    "  background:rgba(52,48,96,.55);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);color:#F0E8DA;",
+    "  font:300 11px/1 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.14em;text-transform:uppercase;",
+    '  transition:opacity .25s ease,transform .25s ease;}',
+    '#ames-toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto;}',
+    '#ames-toast a{color:rgba(240,232,218,.75)!important;text-decoration:none;border-bottom:1px solid rgba(240,232,218,.3);padding-bottom:1px;}',
+    '#ames-toast a:hover{color:#F0E8DA!important;}'
   ].join('\n');
   document.head.appendChild(st);
 
-  // The Readymag link behind the email text is missing its final "m" (gmail.co): open the right address.
+  // Email clicks. Phones: open the mail app. Desktop: many computers have no mail app set up (Chrome/Arc then
+  // open a blank tab), so copy the address and offer Gmail / the mail app instead.
   var EMAIL = 'ameshardingmusic@gmail.com';
+  var desktop = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  dbg.desktopEmail = desktop;
+  var toast, toastTimer;
+  function showToast(copied) {
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'ames-toast';
+      toast.setAttribute('role', 'status');
+      document.body.appendChild(toast);
+    }
+    toast.innerHTML = '<span>' + (copied ? 'Email copied' : EMAIL) + '</span>' +
+      '<a href="https://mail.google.com/mail/?view=cm&to=' + EMAIL + '" target="_blank" rel="noopener">Open in Gmail</a>' +
+      '<a href="mailto:' + EMAIL + '" data-ames-direct>Mail app</a>';
+    toast.classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove('on'); }, 5000);
+  }
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('a[href^="mailto:"]');
-    if (!a || a.getAttribute('href') === 'mailto:' + EMAIL || !/ameshardingmusic@gmail\.co$/.test(a.getAttribute('href'))) return;
+    if (!a || a.hasAttribute('data-ames-direct')) return;
+    var href = a.getAttribute('href');
+    if (!/ameshardingmusic@gmail\.co(m)?$/i.test(href)) return;
     e.preventDefault(); e.stopPropagation();
-    dbg.openEmail('mailto:' + EMAIL);
+    if (!desktop) return dbg.openEmail('mailto:' + EMAIL);
+    var done = function (ok) { dbg.copied = ok; showToast(ok); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(EMAIL).then(function () { done(true); }, function () { done(false); });
+    else done(false);
   }, true);
+
+  // iPhones zoom in when a form field with text under 16px is focused (page 5), and the page then stays zoomed.
+  // Capping the zoom stops that; iOS still lets people pinch-zoom on purpose.
+  function noFormZoom() {
+    if (!isPhone()) return;
+    var m = document.querySelector('meta[name=viewport]');
+    if (m && !/maximum-scale=1(\.0)?(,|$)/.test(m.content)) m.content = 'width=device-width,initial-scale=1,maximum-scale=1';
+  }
 
   // Make the email text clickable wherever it appears, keeping its exact look (the <HEAD> CSS keeps
   // mailto links in the surrounding colour, with no underline). Readymag re-renders pages, so re-check.
   function linkEmail() {
     var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
       acceptNode: function (n) {
-        return n.nodeValue.toLowerCase().indexOf(EMAIL) >= 0 && !(n.parentElement && n.parentElement.closest('a, script, style, textarea'))
+        return n.nodeValue.toLowerCase().indexOf(EMAIL) >= 0 && !(n.parentElement && n.parentElement.closest('a, script, style, textarea, #ames-toast'))
           ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
       }
     });
@@ -110,6 +150,7 @@
       setTimeout(function () { busy = false; }, transition() + 80);
     }, OPTS);
     dbg.ready = true;
+    noFormZoom();
     buildNav(mag);
   }
 
