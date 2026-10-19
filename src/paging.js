@@ -116,39 +116,118 @@
     var mag = window.RM && RM.viewerRouter && RM.viewerRouter.mag;
     if (!mag) return setTimeout(boot, 120);
 
-    // Read lazily: getPageTransitionTime() throws if called before Readymag finishes initialising,
-    // which used to kill this script before any listener was attached.
-    function transition() { try { return mag.getPageTransitionTime() || 550; } catch (e) { return 550; } }
-    var y0 = 0, x0 = 0, t0 = 0, axis = null, busy = false;
+    var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function vertical() { return isPhone() && document.querySelector('.mag.viewer-type-vertical'); }
+    function pageH() { var p = document.querySelector('.mag .page'); return (p && p.offsetHeight) || innerHeight; }
+    function count() { try { return mag.getPagesCount(); } catch (e) { return 1; } }
+    function curIdx() { return (mag.currentPage && mag.currentPage.num || 1) - 1; }
+
+    // ---- phone: the page column is the window scroll; we drive it so the page follows the finger ----
+    var glide = null;
+    function stopGlide() { if (glide) { cancelAnimationFrame(glide); glide = null; } }
+    function glideTo(y, speed) {
+      stopGlide();
+      var from = scrollY, dist = y - from;
+      if (Math.abs(dist) < 1) { scrollTo(0, y); return; }
+      // faster flicks finish faster; short corrections are quick
+      var dur = reduce ? 120 : Math.max(200, Math.min(480, Math.abs(dist) / Math.max(0.9, Math.abs(speed || 0)) * 0.9 + 140));
+      var t0 = performance.now();
+      (function frame(now) {
+        var k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);   // ease-out cubic
+        scrollTo(0, from + dist * e);
+        glide = k < 1 ? requestAnimationFrame(frame) : null;
+      })(t0);
+    }
+    function goTo(n) {   // 1-based page number, used by the swipe hint and the now-playing bar
+      n = Math.max(1, Math.min(count(), n));
+      if (vertical()) return glideTo((n - 1) * pageH(), 2);
+      var steps = n - 1 - curIdx();
+      (function step() {
+        if (!steps) return;
+        if (steps > 0) { mag.goNextPage(); steps--; } else { mag.goPrevPage(); steps++; }
+        setTimeout(step, 260);
+      })();
+    }
+    dbg.goTo = goTo;
+
+    var y0 = 0, x0 = 0, s0 = 0, axis = null, samples = [];
     // capture on window: runs before any Readymag widget can stopPropagation() the touch
     var OPTS = { passive: true, capture: true };
 
     window.addEventListener('touchstart', function (e) {
-      if (e.touches.length !== 1) return;
-      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
-      t0 = Date.now(); axis = null;
+      if (e.touches.length !== 1) { axis = 'multi'; return; }
+      stopGlide();                                   // catching a gliding page holds it under the finger
+      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; s0 = scrollY;
+      axis = null; samples = [[performance.now(), y0]];
     }, OPTS);
 
     window.addEventListener('touchmove', function (e) {
-      if (axis || e.touches.length !== 1) return;
-      var dx = e.touches[0].clientX - x0, dy = e.touches[0].clientY - y0;
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      axis = Math.abs(dy) > Math.abs(dx) * 1.4 ? 'y' : 'x';
+      if (axis === 'multi' || e.touches.length !== 1) { axis = 'multi'; return; }
+      var y = e.touches[0].clientY, dx = e.touches[0].clientX - x0, dy = y - y0;
+      if (!axis) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        axis = Math.abs(dy) > Math.abs(dx) * 1.2 ? 'y' : 'x';
+      }
+      if (axis !== 'y' || !vertical()) return;
+      samples.push([performance.now(), y]); if (samples.length > 6) samples.shift();
+      var max = document.documentElement.scrollHeight - innerHeight, target = s0 - dy;
+      // past the first/last page: resist instead of moving 1:1
+      if (target < 0) target = target * 0.3; else if (target > max) target = max + (target - max) * 0.3;
+      scrollTo(0, Math.max(0, Math.min(max, target)));
     }, OPTS);
 
     window.addEventListener('touchend', function (e) {
-      var dy = e.changedTouches[0].clientY - y0;
-      var dt = Date.now() - t0;
-      dbg.last = { dy: Math.round(dy), dt: dt, axis: axis, phone: isPhone(), busy: busy };
-      if (!isPhone() || axis !== 'y' || busy) return;
-      var commit = Math.abs(dy) > innerHeight * 0.15 || (dt < 300 && Math.abs(dy) > 40);
-      if (!commit) return;
-      busy = true;
-      dbg.last.go = dy < 0 ? (mag.isLastPage() ? 'last-page' : 'next') : (mag.isFirstPage() ? 'first-page' : 'prev');
-      if (dy < 0) { if (!mag.isLastPage()) mag.goNextPage(); }
-      else { if (!mag.isFirstPage()) mag.goPrevPage(); }
-      setTimeout(function () { busy = false; }, transition() + 80);
+      var y = e.changedTouches[0].clientY, dy = y - y0;
+      var last = samples[samples.length - 1] || [0, y], first = samples[0] || last;
+      var v = (last[1] - first[1]) / Math.max(1, last[0] - first[0]);       // px/ms, negative = finger moving up
+      dbg.last = { dy: Math.round(dy), v: +v.toFixed(2), axis: axis, phone: isPhone(), vertical: !!vertical() };
+      if (!isPhone() || axis !== 'y') return;
+      if (!vertical()) {                              // phone in landscape (horizontal viewer): plain page turn
+        if (Math.abs(dy) > innerHeight * 0.15) { if (dy < 0) mag.goNextPage(); else mag.goPrevPage(); }
+        return;
+      }
+      var H = pageH(), from = Math.round(s0 / H);
+      var commit = Math.abs(dy) > H * 0.18 || (Math.abs(v) > 0.35 && Math.abs(dy) > 24);
+      var to = commit ? from + (dy < 0 ? 1 : -1) : from;
+      to = Math.max(0, Math.min(count() - 1, to));
+      dbg.last.go = to > from ? 'next' : to < from ? 'prev' : 'stay';
+      glideTo(to * H, v);
     }, OPTS);
+
+    // ---- desktop: one page per wheel / trackpad gesture (the trackpad's coasting tail is ignored) ----
+    var acc = 0, locked = false, quiet;
+    window.addEventListener('wheel', function (e) {
+      if (isPhone() || e.ctrlKey) return;                         // ctrl+wheel = pinch-zoom on trackpads
+      if (e.target.closest && e.target.closest('textarea, select, [data-ames-scroll]')) return;
+      var d = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      if (e.deltaMode === 1) d *= 16;
+      e.preventDefault();
+      clearTimeout(quiet);
+      quiet = setTimeout(function () { locked = false; acc = 0; }, 180);   // gesture over after 180ms of silence
+      if (locked) return;
+      acc += d;
+      if (Math.abs(acc) < 40) return;
+      locked = true;
+      dbg.lastWheel = acc > 0 ? 'next' : 'prev';
+      if (acc > 0) { if (!mag.isLastPage()) mag.goNextPage(); } else if (!mag.isFirstPage()) mag.goPrevPage();
+    }, { passive: false, capture: true });
+
+    // ---- desktop: page content glides in on every page change (wheel, keys, arrows); the sky stays still ----
+    var lastIdx = curIdx();
+    function arrive() {
+      var i = curIdx();
+      if (i === lastIdx) return;
+      var dir = i > lastIdx ? 1 : -1; lastIdx = i;
+      if (vertical() || reduce) return;
+      var page = document.querySelector('.mag .page.center-page');
+      var c = page && page.querySelector('.page-content-container');
+      if (c && c.animate) dbg.arrivals = (dbg.arrivals || 0) + 1;
+      if (c && c.animate) c.animate([{ transform: 'translateX(' + (dir * 56) + 'px)', opacity: 0 }, { transform: 'none', opacity: 1 }],
+        { duration: 520, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    }
+    var pagesBox = document.querySelector('.mag-pages-container') || document.documentElement;
+    new MutationObserver(arrive).observe(pagesBox, { attributes: true, attributeFilter: ['class'], subtree: true });
+
     dbg.ready = true;
     noFormZoom();
     buildNav(mag);
@@ -168,7 +247,7 @@
       '<span>Swipe up</span></button>';
     document.body.appendChild(nav);
     var rail = nav.querySelector('#ames-rail'), hint = nav.querySelector('#ames-hint');
-    hint.addEventListener('click', function () { if (!mag.isLastPage()) mag.goNextPage(); });
+    hint.addEventListener('click', function () { if (dbg.goTo) dbg.goTo((mag.currentPage && mag.currentPage.num || 1) + 1); else if (!mag.isLastPage()) mag.goNextPage(); });
 
     var shown = { n: 0, count: 0, hint: null };
     function sync() {

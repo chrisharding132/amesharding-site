@@ -296,6 +296,8 @@
     var home = P.el && P.el.closest('.page');
     if (!mag || !mag.currentPage) return;
     var target = playerPageNum() || P.homePage || 2, tries = 0;
+    var nav = window.__amesPaging;
+    if (nav && nav.goTo) return nav.goTo(target);     // glide straight there (phones) / step with page animation
     (function step() {
       if (fullPlayerOnScreen() || tries++ > 20) return;
       var n = mag.currentPage.num;
