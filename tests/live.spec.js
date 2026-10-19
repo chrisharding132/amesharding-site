@@ -29,6 +29,7 @@ async function swipe(page, dy) {
 
 test('live amesharding.com: paging, mood browser and player', async ({ page }) => {
   test.setTimeout(60000);
+  test.skip(test.info().project.name !== 'iphone-webkit', 'swipe paging is phone-only');
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -39,10 +40,21 @@ test('live amesharding.com: paging, mood browser and player', async ({ page }) =
   await expect.poll(() => page.evaluate(() => !!(window.__amesPaging && window.__amesPaging.ready)), { timeout: 15000 }).toBe(true);
   const isPhone = await page.evaluate(() => document.documentElement.classList.contains('isphone'));
   await page.waitForTimeout(1500);
+  if (isPhone) {
+    await expect(page.locator('.navigation-arrow.bottom')).toBeHidden();
+    await expect(page.locator('#ames-hint')).not.toHaveClass(/off/);
+    await expect(page.locator('#ames-rail i')).toHaveCount(5);
+    await expect(page.locator('#ames-rail i').nth(0)).toHaveClass(/on/);
+    await page.screenshot({ path: 'test-results/live-page1-' + test.info().project.name + '.png' });
+  }
   await swipe(page, -300);
   const swipeInfo = await page.evaluate(() => JSON.stringify(window.__amesPaging.last));
   await expect(page, 'swipe: ' + swipeInfo).toHaveURL(/amesharding\.com\/2/, { timeout: 5000 });
 
+  if (isPhone) {
+    await expect(page.locator('#ames-hint')).toHaveClass(/off/);
+    await expect(page.locator('#ames-rail i').nth(1)).toHaveClass(/on/);
+  }
   await expect(page.locator('#ames-mb .ames-light')).toHaveCount(28, { timeout: 15000 });
   await expect(page.locator('#ames-player .ames-group')).toHaveCount(2);
   await page.screenshot({ path: 'test-results/live-page2-' + test.info().project.name + '.png' });
@@ -56,5 +68,10 @@ test('live amesharding.com: paging, mood browser and player', async ({ page }) =
 
   await swipe(page, 300);
   await expect(page).not.toHaveURL(/\/2/, { timeout: 5000 });
+  if (isPhone) {
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => !!(window.__amesPaging && window.__amesPaging.ready)), { timeout: 15000 }).toBe(true);
+    await expect(page.locator('#ames-hint')).toHaveClass(/off/);
+  }
   console.log(JSON.stringify({ isPhone, title, hosted, errors }, null, 1));
 });

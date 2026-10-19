@@ -86,7 +86,7 @@
     el.__amesMounted = true;
     el.innerHTML =
       '<div class="ames-grain"></div><div class="ames-filters"></div>' +
-      '<div class="ames-right"><span class="ames-idle">Click a light to listen</span>' +
+      '<div class="ames-right"><span class="ames-idle">' + (matchMedia('(hover: none)').matches ? 'Tap' : 'Click') + ' a light to listen</span>' +
       '<div class="ames-info"><span class="ames-title"></span><span class="ames-tags"></span></div>' +
       '<div class="ames-controls"><button class="ames-play" aria-label="Play">&#9654;</button>' +
       '<div class="ames-prog"><div class="ames-fill"></div></div>' +
