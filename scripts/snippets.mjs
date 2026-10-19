@@ -16,9 +16,10 @@ phone-sized on portrait screens; it starts downloading before anything else. -->
 <link rel="preload" as="image" href="${img('bg-portrait.jpg')}" media="(max-aspect-ratio: 1/1)">
 <link rel="preload" as="image" href="${img('bg-landscape.jpg')}" media="(min-aspect-ratio: 1/1)">
 <style>
-/* Readymag paints the page colour on the page itself once a background has no picture, so the image goes there too */
-.mag .page{background-image:url("${img('bg-landscape.jpg')}");background-size:cover;background-position:50% 50%;background-repeat:no-repeat}
-@media (max-aspect-ratio:1/1){.mag .page{background-image:url("${img('bg-portrait.jpg')}")}}
+/* Readymag paints the page colour on one of these layers depending on how it renders the page;
+   all three get the same image (one download), so whichever is on top shows it */
+.mag .page,.mag .page-fixed-bg-container,.mag .widget-background{background-image:url("${img('bg-landscape.jpg')}");background-size:cover;background-position:50% 50%;background-repeat:no-repeat}
+@media (max-aspect-ratio:1/1){.mag .page,.mag .page-fixed-bg-container,.mag .widget-background{background-image:url("${img('bg-portrait.jpg')}")}}
 html body a[href^="mailto:"],html body a[href^="mailto:"]:hover,html body a[href^="mailto:"].hover,html body a[href^="mailto:"] *,html body a[href^="mailto:"]:hover *{color:inherit!important;text-decoration:none!important;background:none!important}
 </style>
 `,

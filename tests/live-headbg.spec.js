@@ -34,8 +34,10 @@ for (const [name, d] of Object.entries({ phone: devices['iPhone 13'], desktop: {
         const w = document.querySelector('.page.center-page'); const a = document.querySelector('a[href^="mailto"]');
         if (!a) return { bg: getComputedStyle(w).backgroundImage.split('/').pop().slice(0, 30), mailColor: 'NO LINK', mailText: '', underline: null };
         a.classList.add('hover');   // Readymag's hover state
+        // the topmost element that paints a colour at the top of the screen must also carry the image
+        const top = document.elementsFromPoint(innerWidth / 2, 20).find((e) => getComputedStyle(e).backgroundColor !== 'rgba(0, 0, 0, 0)' || getComputedStyle(e).backgroundImage !== 'none');
         return { bg: getComputedStyle(w).backgroundImage.split('/').pop().slice(0, 30), mailColor: getComputedStyle(a).color, mailText: getComputedStyle(a.parentElement).color,
-          underline: getComputedStyle(a).backgroundImage !== 'none' };
+          underline: getComputedStyle(a).backgroundImage !== 'none', visibleBg: top ? getComputedStyle(top).backgroundImage.split('/').pop().slice(0, 22) : 'none' };
       });
       // clicking the email must open the corrected address
       const opened = await page.evaluate(() => new Promise((res) => {
@@ -49,6 +51,7 @@ for (const [name, d] of Object.entries({ phone: devices['iPhone 13'], desktop: {
       console.log('HB', name, JSON.stringify({ ...r, opened, bgDownloads: bgReqs }));
       expect(r.mailColor, 'email link colour').toBe(r.mailText);
       expect(r.underline).toBe(false);
+      expect(r.visibleBg, 'image on the visible background layer').toMatch(/bg-(portrait|landscape)\.jpg/);
       expect(opened).toBe('mailto:ameshardingmusic@gmail.com');
       expect(bgReqs.length, 'background downloads').toBe(1);
       if (process.env.SIMULATE) {
