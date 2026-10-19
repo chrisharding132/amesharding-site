@@ -17,7 +17,8 @@ for (const [name, d] of Object.entries({ phone: devices['iPhone 13'], desktop: {
       if (process.env.SIMULATE) {
         await page.route(/^https:\/\/amesharding\.com\/(\d+\/?)?$/, async (route) => {
           const res = await route.fetch(); const html = await res.text();
-          route.fulfill({ response: res, body: html.replace('<head>', '<head>' + HEAD) });
+          const cut = html.replace(/<!-- AMES HARDING \u2014 SHARED BACKGROUND[\s\S]*?<\/style>\s*/, '');
+          route.fulfill({ response: res, body: cut.replace('<head>', '<head>' + HEAD) });
         });
         // the per-page Readymag copies (removed in the editor) must not load
         await page.route(/i-p\.rmcdn\.net\/.*\/image-(7ae8b1ad|3454d234|de1fee9b|156aa66d|c4035f0d|db176543)/, (r) => r.abort());
@@ -30,7 +31,7 @@ for (const [name, d] of Object.entries({ phone: devices['iPhone 13'], desktop: {
       await page.evaluate(() => RM.viewerRouter.mag.goFirstPage()); await page.waitForTimeout(1500);
       await page.screenshot({ path: `audit-results/headbg-${name}.png` });
       const r = await page.evaluate(() => {
-        const w = document.querySelector('.page.center-page .widget-background'); const a = document.querySelector('a[href^="mailto"]');
+        const w = document.querySelector('.page.center-page'); const a = document.querySelector('a[href^="mailto"]');
         if (!a) return { bg: getComputedStyle(w).backgroundImage.split('/').pop().slice(0, 30), mailColor: 'NO LINK', mailText: '', underline: null };
         a.classList.add('hover');   // Readymag's hover state
         return { bg: getComputedStyle(w).backgroundImage.split('/').pop().slice(0, 30), mailColor: getComputedStyle(a).color, mailText: getComputedStyle(a.parentElement).color,

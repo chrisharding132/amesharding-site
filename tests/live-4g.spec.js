@@ -13,13 +13,9 @@ test('phone on 4G: time until page 1 background is painted', async ({ page }) =>
   await page.goto('https://amesharding.com/', { waitUntil: 'commit' });
   const marks = {};
   await page.waitForFunction(() => document.querySelector('.rmwidget img, .rmwidget.text'), null, { timeout: 60000 }); marks.firstWidget = Date.now() - t0;
-  // background painted = the .picture-background element exists and its image has finished downloading
-  await page.waitForFunction(async () => {
-    const bg = document.querySelector('.page.center-page .widget-background .picture-background');
-    const u = bg && (/url\("?([^")]+)/.exec(getComputedStyle(bg).backgroundImage) || [])[1];
-    if (!u) return false;
-    return performance.getEntriesByType('resource').some((e) => e.name.split('?')[0] === u.split('?')[0] && e.responseEnd > 0);
-  }, null, { timeout: 60000, polling: 200 });
+  // background painted = the shared background image (set by the <HEAD> snippet) has finished downloading
+  await page.waitForFunction(() => performance.getEntriesByType('resource').some((e) => /bg-(portrait|landscape)\.jpg/.test(e.name) && e.responseEnd > 0),
+    null, { timeout: 60000, polling: 100 });
   marks.background = Date.now() - t0;
   marks.totalKB = await page.evaluate(() => Math.round(performance.getEntriesByType('resource').reduce((a, e) => a + (e.transferSize || 0), 0) / 1024));
   console.log('4G', JSON.stringify(marks));
