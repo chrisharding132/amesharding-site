@@ -36,7 +36,10 @@
     '@keyframes ames-float-b{0%,100%{translate:0 0}30%{translate:-10px 7px}55%{translate:5px 12px}80%{translate:11px -4px}}',
     '@keyframes ames-float-c{0%,100%{translate:0 0}20%{translate:7px 9px}50%{translate:13px -5px}75%{translate:-7px -11px}}',
     '@keyframes ames-twinkle{0%,100%{opacity:1}50%{opacity:.72}}',
-    '@media (prefers-reduced-motion:reduce){#ames-mb .ames-light{animation:none!important}}',
+    // Reduce Motion on: still drift, but slower and smaller (no breathing scale on the halo)
+    '@keyframes ames-float-soft{0%,100%{translate:0 0}33%{translate:3px -4px}66%{translate:-4px 2px}}',
+    '@media (prefers-reduced-motion:reduce){#ames-mb .ames-light{animation-name:ames-float-soft,ames-twinkle!important;animation-duration:19s,7s!important;}',
+    '  #ames-mb .ames-light.playing::after{animation:none;opacity:.8;transform:none;}}',
     '#ames-mb .ames-light.hid{animation:none!important;opacity:.1;filter:grayscale(1);pointer-events:none;}'
   ].join('\n');
 
@@ -152,8 +155,9 @@
     var b = box.getBoundingClientRect(), r = pl.getBoundingClientRect();
     if (!r.width || !r.height || r.left >= b.right || r.right <= b.left) return Infinity;
     var bt = pageTop(box), boxTop = b.top - bt, plBottom = r.bottom - pageTop(pl);
-    // page in view: the player can also be clipped by the bottom of the screen
-    if (Math.abs(bt) < innerHeight / 2) plBottom = Math.min(plBottom, innerHeight - bt);
+    // measured as if the page were in view (top at the top of the screen), whether or not it is yet,
+    // so the map gets the same layout before and after the page arrives (no rearranging on arrival)
+    plBottom = Math.min(plBottom, innerHeight);
     var expanded = (P && P.expandedHeight ? P.expandedHeight : pl.offsetHeight) * (r.height / (pl.offsetHeight || 1));
     return (plBottom - expanded - boxTop) / k - 6;
   }

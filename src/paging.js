@@ -43,9 +43,13 @@
     '#ames-toast a:hover{color:#F0E8DA!important;}',
     // phones at rest: only the current page shows (no slivers of the neighbours); a fixed sky sits behind.
     // While a finger is down or a page is gliding the neighbours are shown, so they can slide in.
-    '.isphone.ames-still .mag.viewer-type-vertical .page:not(.center-page){visibility:hidden;}',
+    // pages are marked off only from their measured position (never Readymag's current-page label, which lags)
+    '.isphone .mag.viewer-type-vertical .page.ames-off{visibility:hidden!important;}',
     '.isphone .mag.viewer-type-vertical{background:transparent!important;}',
-    '#ames-sky{position:fixed;inset:0;z-index:-1;pointer-events:none;background:#7a6485 center/cover no-repeat;}',
+    // scroll area at least as tall as the pages (Readymag sometimes re-sizes it to the visible height in Chrome)
+    '.isphone body.overflow-on-vertical-view,.isphone .mag.viewer-type-vertical{min-height:var(--ames-doc-h,0px)!important;}',
+    // the sky lives inside Readymag's page area, under the pages (which are z-index 2-6), so a gap is never black
+    '#ames-sky{position:fixed;inset:0;z-index:0;pointer-events:none;background:#7a6485 center/cover no-repeat;}',
     '#ames-debug{position:fixed;left:6px;top:6px;z-index:2147483647;max-width:calc(100vw - 12px);padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.78);color:#9f9;font:10px/1.35 ui-monospace,Menlo,monospace;white-space:pre-wrap;pointer-events:none;}'
   ].join('\n');
   document.head.appendChild(st);
@@ -162,14 +166,42 @@
 
     var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     function vertical() { return isPhone() && document.querySelector('.mag.viewer-type-vertical'); }
-    function pageH() { var p = document.querySelector('.mag .page'); return (p && p.offsetHeight) || innerHeight; }
+    // Readymag's pages are not all the same height (Chrome on iPhone: 684 then 714...), so every target comes
+    // from where each page actually sits in the document, never from "page number x one height".
+    function tops() { return Array.prototype.map.call(document.querySelectorAll('.mag .page'), function (p) { return p.getBoundingClientRect().top + scrollY; }); }
+    function nearestIdx(y) { var t = tops(), best = 0; t.forEach(function (v, i) { if (Math.abs(v - y) < Math.abs(t[best] - y)) best = i; }); return best; }
+    function topOf(i) { var t = tops(); return t[Math.max(0, Math.min(t.length - 1, i))] || 0; }
+    function pageH() { var p = document.querySelectorAll('.mag .page'), c = p[curIdx()] || p[0]; return (c && c.offsetHeight) || innerHeight; }
     function count() { try { return mag.getPagesCount(); } catch (e) { return 1; } }
     function curIdx() { return (mag.currentPage && mag.currentPage.num || 1) - 1; }
 
     // ---- phone: the page column is the window scroll; we drive it so the page follows the finger ----
     var glide = null;
     function stopGlide() { if (glide) { cancelAnimationFrame(glide); glide = null; } }
-    function still(on) { document.documentElement.classList.toggle('ames-still', on); }
+    // At rest only the page(s) actually on screen are shown; while dragging/gliding every page is shown.
+    function markOff() {
+      var pages = document.querySelectorAll('.mag.viewer-type-vertical .page'), best = null, bestOv = -1, ov = [];
+      Array.prototype.forEach.call(pages, function (p, i) {
+        var r = p.getBoundingClientRect(), o = Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0));
+        ov[i] = o; if (o > bestOv) { bestOv = o; best = i; }
+      });
+      Array.prototype.forEach.call(pages, function (p, i) { p.classList.toggle('ames-off', i !== best && ov[i] < innerHeight * 0.15); });
+    }
+    function still(on) {
+      document.documentElement.classList.toggle('ames-still', on);
+      if (on && vertical()) markOff();
+      else Array.prototype.forEach.call(document.querySelectorAll('.mag .page.ames-off'), function (p) { p.classList.remove('ames-off'); });
+    }
+    // Readymag can size the scrollable area shorter than its pages (Chrome on iPhone: 684px of scroll per
+    // 714px page), so the last page could never be reached exactly. Make the scroll area as tall as the pages.
+    function fitHeight() {
+      if (!vertical()) return;
+      var ps = document.querySelectorAll('.mag .page'), last = ps[ps.length - 1];
+      if (!last) return;
+      var need = Math.ceil(topOf(ps.length - 1) + last.offsetHeight) + 'px';
+      if (document.documentElement.style.getPropertyValue('--ames-doc-h') !== need) document.documentElement.style.setProperty('--ames-doc-h', need);
+    }
+    function maxScroll() { return Math.max(0, document.documentElement.scrollHeight - innerHeight); }
     function glideTo(y, speed) {
       stopGlide();
       still(false);
@@ -187,7 +219,7 @@
     }
     function goTo(n) {   // 1-based page number, used by the swipe hint and the now-playing bar
       n = Math.max(1, Math.min(count(), n));
-      if (vertical()) return glideTo((n - 1) * pageH(), 2);
+      if (vertical()) { fitHeight(); return glideTo(Math.min(topOf(n - 1), maxScroll()), 2); }
       var steps = n - 1 - curIdx();
       (function step() {
         if (!steps) return;
@@ -204,6 +236,7 @@
     window.addEventListener('touchstart', function (e) {
       if (e.touches.length !== 1) { axis = 'multi'; return; }
       stopGlide();                                   // catching a gliding page holds it under the finger
+      fitHeight();
       x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; s0 = scrollY;
       axis = null; samples = [[performance.now(), y0]];
     }, OPTS);
@@ -231,19 +264,19 @@
       dbg.last = { dy: Math.round(dy), v: +v.toFixed(2), axis: axis, phone: isPhone(), vertical: !!vertical() };
       if (!isPhone() || axis !== 'y') {
         // a tap (possibly catching a gliding page): settle on the nearest page
-        if (vertical()) { var Hn = pageH(), near = Math.round(scrollY / Hn) * Hn; if (Math.abs(scrollY - near) > 1) glideTo(near, 1); else still(true); }
+        if (vertical()) { var near = Math.min(topOf(nearestIdx(scrollY)), maxScroll()); if (Math.abs(scrollY - near) > 1) glideTo(near, 1); else still(true); }
         return;
       }
       if (!vertical()) {                              // phone in landscape (horizontal viewer): plain page turn
         if (Math.abs(dy) > innerHeight * 0.15) { if (dy < 0) mag.goNextPage(); else mag.goPrevPage(); }
         return;
       }
-      var H = pageH(), from = Math.round(s0 / H);
+      var H = pageH(), from = nearestIdx(s0);
       var commit = Math.abs(dy) > H * 0.18 || (Math.abs(v) > 0.35 && Math.abs(dy) > 24);
       var to = commit ? from + (dy < 0 ? 1 : -1) : from;
       to = Math.max(0, Math.min(count() - 1, to));
       dbg.last.go = to > from ? 'next' : to < from ? 'prev' : 'stay';
-      glideTo(to * H, v);
+      glideTo(Math.min(topOf(to), maxScroll()), v);
     }, OPTS);
 
     // ---- desktop: one page per wheel / trackpad gesture (the trackpad's coasting tail is ignored) ----
@@ -285,9 +318,32 @@
     if (isPhone()) {
       var sky = document.createElement('div'); sky.id = 'ames-sky';
       sky.style.backgroundImage = 'url("' + BASE + 'assets/' + (innerWidth < innerHeight ? 'bg-portrait.jpg' : 'bg-landscape.jpg') + '")';
-      document.body.insertBefore(sky, document.body.firstChild);
+      var magEl = document.querySelector('.mag') || document.body;
+      magEl.insertBefore(sky, magEl.firstChild);
+      fitHeight();
       still(true);
       setTimeout(resetZoom, 600);
+      setInterval(fitHeight, 1000);
+      // browser bar showing/hiding: Readymag resizes the pages but leaves the scroll where it was, so the
+      // current page slides off its slot (a sliver of the previous page appears). Put it back exactly.
+      var resizeT;
+      addEventListener('resize', function () {
+        fitHeight();
+        clearTimeout(resizeT);
+        resizeT = setTimeout(function () {
+          if (glide || !document.documentElement.classList.contains('ames-still')) return;
+          var y = Math.min(topOf(nearestIdx(scrollY)), maxScroll());
+          if (Math.abs(scrollY - y) > 1) scrollTo(0, y);
+          markOff();
+        }, 150);
+      });
+      // anything else that moves the page (Readymag itself, the address bar): re-mark once scrolling stops
+      var scrollEnd;
+      addEventListener('scroll', function () {
+        if (glide || !document.documentElement.classList.contains('ames-still')) return;
+        Array.prototype.forEach.call(document.querySelectorAll('.mag .page.ames-off'), function (p) { p.classList.remove('ames-off'); });
+        clearTimeout(scrollEnd); scrollEnd = setTimeout(markOff, 120);
+      }, { passive: true });
     }
     if (DEBUG) debugPanel(mag);
     var lastPageForZoom = curIdx();
