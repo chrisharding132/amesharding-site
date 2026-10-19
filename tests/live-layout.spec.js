@@ -31,15 +31,17 @@ for (const [name, dev] of Object.entries(SCREENS)) {
         let min = 1e9; for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) min = Math.min(min, Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y));
         const offscreen = pts.filter((p) => p.x < 12 || p.x > innerWidth - 12 || p.y < 12 || p.y > innerHeight - 12).length;
         const underPlayer = pts.filter((p) => p.x > pl.left && p.x < pl.right && p.y + 14 > pl.top).length;
+        const stageBottom = document.querySelector('#ames-mb .ames-stage').getBoundingClientRect().bottom;
         const t = document.querySelector('#ames-player .ames-title');
         return { min: Math.round(min), offscreen, underPlayer, titleClipped: t.scrollHeight > t.clientHeight + 1 || t.scrollWidth > t.clientWidth + 1,
-          tagsShown: getComputedStyle(document.querySelector('#ames-player .ames-tags')).display !== 'none', playerTop: Math.round(pl.top), vh: innerHeight };
+          tagsShown: getComputedStyle(document.querySelector('#ames-player .ames-tags')).display !== 'none', mapClear: stageBottom <= pl.top + 1 || pl.left > innerWidth, playerTop: Math.round(pl.top), vh: innerHeight };
       });
       console.log('LAYOUT', name, JSON.stringify(r));
       expect(r.offscreen).toBe(0);
       expect(r.underPlayer).toBe(0);
       expect(r.titleClipped).toBe(false);
       expect(r.tagsShown).toBe(true);
+      expect(r.mapClear, 'map incl. DARK ends above the open player').toBe(true);
     });
   });
 }

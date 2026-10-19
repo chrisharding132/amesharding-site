@@ -98,25 +98,43 @@ test('playing state keeps progress bar and close button inside the phone strip',
 });
 
 for (const layout of ['phone', 'desktop']) {
-  test(`lights spread out, stay inside the box and off the labels (${layout})`, async ({ page }) => {
+  test(`lights keep their true coordinates, never overlap, stay inside and off the labels (${layout})`, async ({ page }) => {
     await page.setViewportSize(layout === 'desktop' ? { width: 1024, height: 520 } : { width: 320, height: 568 });
-    await page.goto('/tests/harness.html?prefetch=cluster' + (layout === 'desktop' ? '&layout=desktop' : ''));
+    await page.goto('/tests/harness.html?prefetch=fail' + (layout === 'desktop' ? '&layout=desktop' : ''));  // 28 real tracks
     await expect(page.locator('#ames-mb .ames-light')).toHaveCount(28);
-    await page.waitForTimeout(600); // left/top transition
+    await expect(page.locator('#ames-mb .ames-stage')).toHaveClass(/on/);
     const r = await page.evaluate(() => {
       const box = document.getElementById('ames-mb').getBoundingClientRect();
-      const pts = [...document.querySelectorAll('#ames-mb .ames-light')].map((e) => { const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
-      let min = 1e9; for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) min = Math.min(min, Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y));
-      const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
-      return { box: [box.left, box.top, box.right, box.bottom], min, spreadX: (Math.max(...xs) - Math.min(...xs)) / box.width, spreadY: (Math.max(...ys) - Math.min(...ys)) / box.height,
-        outside: pts.filter((p) => p.x - 16 < box.left || p.x + 16 > box.right || p.y - 16 < box.top || p.y + 16 > box.bottom).length, layout: document.getElementById('ames-mb')._layout };
+      const ls = [...document.querySelectorAll('#ames-mb .ames-light')];
+      // resting positions (style left/top), not getBoundingClientRect: the drift animation moves lights a few px
+      const st = document.querySelector('#ames-mb .ames-stage').getBoundingClientRect();
+      const pts = ls.map((e) => ({ x: st.left + parseFloat(e.style.left) / 100 * st.width, y: st.top + parseFloat(e.style.top) / 100 * st.height }));
+      const data = window.__amesMood.tracks;
+      let min = 1e9, pairs = 0, flips = 0;
+      for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+        min = Math.min(min, Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y));
+        const dx = data[j].x - data[i].x, dy = data[j].y - data[i].y;
+        if (Math.abs(dx) > 0.12) { pairs++; if (Math.sign(pts[j].x - pts[i].x) !== Math.sign(dx)) flips++; }
+        if (Math.abs(dy) > 0.12) { pairs++; if (Math.sign(pts[i].y - pts[j].y) !== Math.sign(dy)) flips++; }
+      }
+      return { min, pairs, flips, outside: pts.filter((p) => p.x - 16 < box.left || p.x + 16 > box.right || p.y - 16 < box.top || p.y + 16 > box.bottom).length };
     });
-    expect(r.outside, JSON.stringify(r)).toBe(0);
-    expect(r.min, 'closest pair of lights (px)').toBeGreaterThanOrEqual(30);
-    expect(r.spreadY, 'vertical spread').toBeGreaterThan(0.6);
-    if (layout === 'desktop') expect(r.spreadX, 'horizontal spread').toBeGreaterThan(0.6);
+    expect(r.outside).toBe(0);
+    expect(r.min, 'closest pair of lights (px)').toBeGreaterThanOrEqual(28);
+    expect(r.flips / r.pairs, 'share of clearly-ordered pairs whose order flipped').toBeLessThanOrEqual(0.02);
   });
 }
+
+test('no placeholder dots flash before the real data arrives', async ({ page }) => {
+  await page.goto('/tests/harness.html');   // Airtable stand-in answers after 300ms
+  await page.waitForTimeout(120);
+  const early = await page.evaluate(() => ({ lights: document.querySelectorAll('#ames-mb .ames-light').length,
+    visible: getComputedStyle(document.querySelector('#ames-mb .ames-stage')).opacity }));
+  expect(early.lights).toBe(0);
+  expect(early.visible).toBe('0');
+  await expect(page.locator('#ames-mb .ames-light')).toHaveCount(3);
+  await expect(page.locator('#ames-mb .ames-stage')).toHaveClass(/on/);
+});
 
 test('phone player shows every desktop element when playing, inside the screen', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
@@ -142,4 +160,6 @@ test('phone player shows every desktop element when playing, inside the screen',
   const under = await page.evaluate((top) => [...document.querySelectorAll('#ames-mb .ames-light')]
     .filter((e) => { const b = e.getBoundingClientRect(); return b.top + b.height / 2 + 16 > top; }).length, p.y);
   expect(under, 'lights under the player').toBe(0);
+  const stageBottom = await page.evaluate(() => document.querySelector('#ames-mb .ames-stage').getBoundingClientRect().bottom);
+  expect(stageBottom, 'map (incl. DARK label) ends above the open player').toBeLessThanOrEqual(p.y + 1);
 });

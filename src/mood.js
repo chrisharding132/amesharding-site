@@ -9,12 +9,18 @@
   var CSS = [
     '#ames-mb{position:relative;width:100%;height:100%;min-height:0;overflow:hidden;background:transparent;',
     '  cursor:url("' + BASE + 'assets/cursor.png") 4 4,auto;}',
+    // .ames-stage holds the labels and lights: invisible until real data + labels are ready, then fades in once.
+    // On phones its height stops above the player's open panel, so DARK and the lowest lights stay visible.
+    '#ames-mb .ames-stage{position:absolute;left:0;right:0;top:0;height:100%;opacity:0;transition:opacity .7s ease;}',
+    '#ames-mb .ames-stage.on{opacity:1;}',
     '#ames-mb .ames-labels{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:.65;pointer-events:none;z-index:1;}',
     '#ames-mb::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;',
     '  background-image:url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.07\'/%3E%3C/svg%3E");}',
     '#ames-mb .ames-light{position:absolute;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;z-index:2;',
     '  background:radial-gradient(circle,rgba(236,182,146,.95) 0%,rgba(236,182,146,.75) 6%,rgba(236,182,146,.32) 14%,rgba(236,182,146,.1) 32%,rgba(236,182,146,0) 58%);',
-    '  transition:transform .25s ease,opacity .3s ease,filter .3s ease,left .4s ease,top .4s ease;}',
+    '  transition:transform .25s ease,opacity .3s ease,filter .3s ease;}',
+    // glide only for later re-layouts (rotation, address bar), never on first placement
+    '#ames-mb .ames-stage.on .ames-light{transition:transform .25s ease,opacity .3s ease,filter .3s ease,left .4s ease,top .4s ease;}',
     '#ames-mb .ames-light:hover{transform:scale(1.35);}',
     '#ames-mb .ames-light.sel{background:radial-gradient(circle,rgba(232,93,117,.95) 0%,rgba(232,93,117,.75) 6%,rgba(232,93,117,.32) 14%,rgba(232,93,117,.1) 32%,rgba(232,93,117,0) 58%);}',
     '@keyframes ames-drift{0%{margin-top:-30px;margin-left:-30px}25%{margin-top:-26px;margin-left:-33px}50%{margin-top:-33px;margin-left:-28px}75%{margin-top:-27px;margin-left:-26px}100%{margin-top:-30px;margin-left:-30px}}',
@@ -75,7 +81,7 @@
   // ---- shared state (one copy per page, however many times this file is loaded) ----
   var S = window.__amesMood;
   if (!S) {
-    S = window.__amesMood = { tracks: FALLBACK, filters: { type: [], tempo: [] }, boxes: [] };
+    S = window.__amesMood = { tracks: null, filters: { type: [], tempo: [] }, boxes: [] };
     var st = document.createElement('style');
     st.id = 'ames-mb-css';
     st.textContent = CSS;
@@ -84,31 +90,30 @@
     window.addEventListener('message', function (e) {
       var d = e.data;
       if (d && d.amesFilters) { S.filters.type = d.type || []; S.filters.tempo = d.tempo || []; S.boxes.forEach(applyFilters); }
+      if (d && d.amesPlayerSize) S.boxes.forEach(function (b) { layout(b); reveal(b); });
     });
-    window.addEventListener('message', function (e) {
-      if (e.data && e.data.amesPlayerSize) S.boxes.forEach(layout);
-    });
-    window.addEventListener('resize', function () { S.boxes.forEach(function (b) { orient(b); layout(b); }); });
+    window.addEventListener('resize', function () { S.boxes.forEach(layout); });
 
+    // Wait for Airtable instead of flashing the built-in list first. The built-in list is only
+    // a fallback: Airtable failed, returned nothing, or took longer than 4s.
+    var settled = false;
+    function use(list) { S.tracks = list; S.boxes.forEach(render); }
     if (window.__amesTracksPromise) {
+      var timer = setTimeout(function () { if (!settled) { settled = true; use(FALLBACK); } }, 4000);
       window.__amesTracksPromise.then(function (recs) {
         var mapped = fromAirtable(recs);
-        if (!mapped.length) return;
-        S.tracks = mapped;
-        S.boxes.forEach(render);
-      }).catch(function () {});
+        if (!settled) { settled = true; clearTimeout(timer); use(mapped.length ? mapped : FALLBACK); }
+        else if (mapped.length) use(mapped);   // very slow Airtable: swap in the real list late
+      }, function () { if (!settled) { settled = true; clearTimeout(timer); use(FALLBACK); } });
+    } else {
+      use(FALLBACK);
     }
   }
 
-  function orient(box) {
-    var portrait = box.offsetHeight > box.offsetWidth;
-    box.querySelector('.ames-labels.l').style.display = portrait ? 'none' : 'block';
-    box.querySelector('.ames-labels.p').style.display = portrait ? 'block' : 'none';
-  }
-
   function rnd(a, b) { return (a + Math.random() * (b - a)).toFixed(2); }
+  function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 
-  // ---- layout: spread the lights over the free space, never off-box, on labels, or under the player ----
+  // ---- layout ----
   // Axis-word boxes in each label image, in % of the image (measured from the PNG alpha).
   var LABELS = {
     l: { w: 1200, h: 633,  top: [47.9, 0.3, 53.2, 5.7], bottom: [48.0, 93.8, 53.0, 99.1], side: [[0.2, 48.7, 11.2, 51.2], [85.1, 48.7, 99.9, 51.2]] },
@@ -117,7 +122,7 @@
   var R = 16;      // visible radius of a light (the 46px glow fades out well before its edge)
   var DRIFT = 10;  // ames-drift pulls a light up to 10px up/left of its spot
 
-  // Where the player's expanded top edge sits, in the box's own coordinates (Infinity if no overlap).
+  // Top edge of the player's open panel, in the box's own coordinates (Infinity if it doesn't overlap).
   function playerLimit(box, k) {
     var pl = document.getElementById('ames-player');
     var P = window.__amesPlayer;
@@ -129,78 +134,93 @@
     var boxTop = b.top - (page ? page.getBoundingClientRect().top : 0);
     var expanded = (P && P.expandedHeight ? P.expandedHeight : pl.offsetHeight) * (r.height / (pl.offsetHeight || 1));
     var limit = Math.min(r.bottom, innerHeight) - expanded;
-    return (limit - boxTop) / k - 8;
+    return (limit - boxTop) / k - 6;
   }
 
+  // Lights sit at their true X/Y on a fixed 0-1 scale (so adding songs never moves the others).
+  // Only lights that would overlap get nudged apart, by the minimum distance needed to tap them.
   function layout(box) {
-    var lights = box._lights, W = box.offsetWidth, H = box.offsetHeight;
-    if (!lights || !lights.length || !W || !H) return;
-    var k = box.getBoundingClientRect().height / H || 1;   // Readymag scales the whole page
-    var L = H > W ? LABELS.p : LABELS.l;
+    var stage = box._stage, W = box.offsetWidth, HB = box.offsetHeight;
+    if (!stage || !W || !HB) return;
+    var k = box.getBoundingClientRect().height / HB || 1;   // Readymag scales the whole page
+    var H = Math.round(Math.max(HB * 0.6, Math.min(HB, playerLimit(box, k))));
+    stage.style.height = H + 'px';
+    var portrait = H > W, L = portrait ? LABELS.p : LABELS.l;
+    stage.querySelector('.ames-labels.l').style.display = portrait ? 'none' : 'block';
+    stage.querySelector('.ames-labels.p').style.display = portrait ? 'block' : 'none';
+    var lights = box._lights;
+    if (!lights || !lights.length) return;
+
     var s = Math.min(W / L.w, H / L.h), ox = (W - L.w * s) / 2, oy = (H - L.h * s) / 2;
     function rect(r) { return [ox + r[0] / 100 * L.w * s, oy + r[1] / 100 * L.h * s, ox + r[2] / 100 * L.w * s, oy + r[3] / 100 * L.h * s]; }
     var pad = R + 6;
     var x0 = R + DRIFT, x1 = W - R;
-    var y0 = Math.max(R + DRIFT, rect(L.top)[3] + pad);
-    var y1 = Math.min(H - R, rect(L.bottom)[1] - pad, playerLimit(box, k) - R);
-    if (y1 - y0 < 60) y1 = y0 + 60;
+    var y0 = Math.max(R + DRIFT, rect(L.top)[3] + pad), y1 = Math.min(H - R, rect(L.bottom)[1] - pad);
     var obstacles = L.side.map(rect).map(function (o) { return [o[0] - pad, o[1] - pad, o[2] + pad, o[3] + pad]; });
 
-    // 1. stretch the data range to fill the free area (keeps every track's relative place on the map)
-    var xs = lights.map(function (l) { return l.t.x; }), ys = lights.map(function (l) { return l.t.y; });
-    var mnx = Math.min.apply(0, xs), mxx = Math.max.apply(0, xs), mny = Math.min.apply(0, ys), mxy = Math.max.apply(0, ys);
     var pts = lights.map(function (l) {
-      return { x: x0 + (mxx > mnx ? (l.t.x - mnx) / (mxx - mnx) : 0.5) * (x1 - x0),
-               y: y0 + (mxy > mny ? (mxy - l.t.y) / (mxy - mny) : 0.5) * (y1 - y0) };
+      return { x: x0 + clamp01(l.t.x) * (x1 - x0), y: y0 + (1 - clamp01(l.t.y)) * (y1 - y0) };
     });
-
-    // 2. push apart anything closer than D, and out of the side labels; deterministic, so no jumping on reload
-    var D = Math.max(34, Math.min(64, Math.sqrt((x1 - x0) * (y1 - y0) / pts.length) * 0.8));
-    for (var it = 0; it < 160; it++) {
+    var D = Math.max(30, Math.min(40, Math.min(W, H) * 0.1));
+    for (var it = 0; it < 120; it++) {
+      var moved = false;
       for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) {
         var dx = pts[j].x - pts[i].x, dy = pts[j].y - pts[i].y, d = Math.sqrt(dx * dx + dy * dy);
         if (d >= D) continue;
-        if (d < 0.01) { dx = Math.cos(i + j); dy = Math.sin(i + j); d = 1; }
+        if (d < 0.01) { dx = Math.cos(i * 7 + j); dy = Math.sin(i * 7 + j); d = 1; }   // identical spots: split deterministically
         var push = (D - d) / 2 / d;
         pts[i].x -= dx * push; pts[i].y -= dy * push; pts[j].x += dx * push; pts[j].y += dy * push;
+        moved = true;
       }
       pts.forEach(function (p) {
         obstacles.forEach(function (o) {
-          if (p.x > o[0] && p.x < o[2] && p.y > o[1] && p.y < o[3]) {
-            // leave by the nearest vertical edge: these labels are wide and short
-            if (p.y - o[1] < o[3] - p.y) p.y = o[1]; else p.y = o[3];
-          }
+          if (p.x > o[0] && p.x < o[2] && p.y > o[1] && p.y < o[3]) { if (p.y - o[1] < o[3] - p.y) p.y = o[1]; else p.y = o[3]; moved = true; }
         });
         p.x = Math.min(x1, Math.max(x0, p.x)); p.y = Math.min(y1, Math.max(y0, p.y));
       });
+      if (!moved) break;
     }
     lights.forEach(function (l, i) {
       l.el.style.left = (pts[i].x / W * 100).toFixed(2) + '%';
       l.el.style.top = (pts[i].y / H * 100).toFixed(2) + '%';
     });
-    box._layout = { W: W, H: H, x0: x0, x1: x1, y0: y0, y1: y1, D: D };
+    box._layout = { W: W, H: H, HB: HB, x0: x0, x1: x1, y0: y0, y1: y1, D: D };
+  }
+
+  // Fade the map in once: tracks placed, the visible label image decoded, and the player measured
+  // (or given up on after 1.5s), so nothing pops in or jumps afterwards.
+  function reveal(box) {
+    var stage = box._stage;
+    if (!stage || stage.classList.contains('on') || !box._lights || !box._layout) return;
+    var img = stage.querySelector(box._layout.H > box._layout.W ? '.ames-labels.p' : '.ames-labels.l');
+    var playerPending = document.getElementById('ames-player') && !(window.__amesPlayer && window.__amesPlayer.expandedHeight);
+    if ((!img.complete || playerPending) && Date.now() - box._mountedAt < 1500) return;
+    requestAnimationFrame(function () { stage.classList.add('on'); });
   }
 
   // Clean rebuild: every light in the box is removed first, so dots can never double up.
   function render(box) {
-    Array.prototype.forEach.call(box.querySelectorAll('.ames-light'), function (el) { el.remove(); });
+    var stage = box._stage;
+    if (!stage || !S.tracks) return;
+    Array.prototype.forEach.call(stage.querySelectorAll('.ames-light'), function (el) { el.remove(); });
     box._lights = S.tracks.map(function (t) {
       var el = document.createElement('div');
       el.className = 'ames-light';
       el.style.animation = 'ames-drift ' + rnd(7, 12) + 's ease-in-out -' + rnd(0, 10) + 's infinite, ' +
         'ames-twinkle ' + rnd(2.5, 6) + 's ease-in-out -' + rnd(0, 5) + 's infinite';
       el.addEventListener('click', function () {
-        var s = box.querySelector('.ames-light.sel');
+        var s = stage.querySelector('.ames-light.sel');
         if (s) s.classList.remove('sel');
         el.classList.add('sel');
         window.postMessage({ amesPlayer: true, action: 'play',
           track: { title: t.title, duration: t.duration, tags: t.tags, src: t.src } }, '*');
       });
-      box.appendChild(el);
+      stage.appendChild(el);
       return { el: el, t: t };
     });
     layout(box);
     applyFilters(box);
+    reveal(box);
   }
 
   function applyFilters(box) {
@@ -214,13 +234,17 @@
   function mount(box) {
     if (box.__amesMounted) return;
     box.__amesMounted = true;
-    box.innerHTML =
+    box._mountedAt = Date.now();
+    box.innerHTML = '<div class="ames-stage">' +
       '<img class="ames-labels l" alt="" src="' + BASE + 'assets/labels-landscape.png">' +
-      '<img class="ames-labels p" alt="" src="' + BASE + 'assets/labels-portrait.png">';
+      '<img class="ames-labels p" alt="" src="' + BASE + 'assets/labels-portrait.png"></div>';
+    box._stage = box.firstChild;
+    Array.prototype.forEach.call(box.querySelectorAll('img'), function (im) { im.addEventListener('load', function () { reveal(box); }); });
+    setTimeout(function () { reveal(box); }, 1600);
     S.boxes.push(box);
-    orient(box);
+    layout(box);
     render(box);
-    if (window.ResizeObserver) new ResizeObserver(function () { orient(box); layout(box); }).observe(box);
+    if (window.ResizeObserver) new ResizeObserver(function () { layout(box); reveal(box); }).observe(box);
   }
 
   // Readymag can insert the widget after this script runs, and re-insert it on page revisits.
