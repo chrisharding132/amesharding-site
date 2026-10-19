@@ -31,16 +31,25 @@ for (const [name, d] of Object.entries({ phone: devices['iPhone 13'], desktop: {
       await page.screenshot({ path: `audit-results/headbg-${name}.png` });
       const r = await page.evaluate(() => {
         const w = document.querySelector('.page.center-page .widget-background'); const a = document.querySelector('a[href^="mailto"]');
+        if (!a) return { bg: getComputedStyle(w).backgroundImage.split('/').pop().slice(0, 30), mailColor: 'NO LINK', mailText: '', underline: null };
         a.classList.add('hover');   // Readymag's hover state
         return { bg: getComputedStyle(w).backgroundImage.split('/').pop().slice(0, 30), mailColor: getComputedStyle(a).color, mailText: getComputedStyle(a.parentElement).color,
           underline: getComputedStyle(a).backgroundImage !== 'none' };
       });
       // clicking the email must open the corrected address
       const opened = await page.evaluate(() => new Promise((res) => {
-        window.__amesPaging.openEmail = res; setTimeout(() => res('nothing'), 1000);
-        document.querySelector('a[href^="mailto"]').click();
+        window.__amesPaging.openEmail = res;
+        const a = document.querySelector('a[href^="mailto"]'); if (!a) return res('no link');
+        // a correct mailto link is left to the browser: report its address instead of navigating
+        a.addEventListener('click', (e) => { e.preventDefault(); res(a.getAttribute('href')); }, { once: true });
+        setTimeout(() => res('nothing'), 1000);
+        a.click();
       }));
       console.log('HB', name, JSON.stringify({ ...r, opened, bgDownloads: bgReqs }));
+      expect(r.mailColor, 'email link colour').toBe(r.mailText);
+      expect(r.underline).toBe(false);
+      expect(opened).toBe('mailto:ameshardingmusic@gmail.com');
+      expect(bgReqs.length, 'background downloads').toBe(1);
       if (process.env.SIMULATE) {
         expect(r.bg).toMatch(/bg-(portrait|landscape)\.jpg/);
         expect(bgReqs.length, 'background downloads').toBe(1);

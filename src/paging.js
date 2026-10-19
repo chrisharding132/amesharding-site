@@ -43,6 +43,32 @@
     dbg.openEmail('mailto:' + EMAIL);
   }, true);
 
+  // Make the email text clickable wherever it appears, keeping its exact look (the <HEAD> CSS keeps
+  // mailto links in the surrounding colour, with no underline). Readymag re-renders pages, so re-check.
+  function linkEmail() {
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        return n.nodeValue.toLowerCase().indexOf(EMAIL) >= 0 && !(n.parentElement && n.parentElement.closest('a, script, style, textarea'))
+          ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    });
+    var nodes = [], n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    nodes.forEach(function (t) {
+      var i = t.nodeValue.toLowerCase().indexOf(EMAIL);
+      var mid = t.splitText(i), after = mid.splitText(EMAIL.length);
+      var a = document.createElement('a');
+      a.href = 'mailto:' + EMAIL;
+      a.className = 'ames-email';
+      t.parentNode.insertBefore(a, after);
+      a.appendChild(mid);
+    });
+  }
+  var emailTimer;
+  new MutationObserver(function () { clearTimeout(emailTimer); emailTimer = setTimeout(linkEmail, 100); })
+    .observe(document.documentElement, { childList: true, subtree: true });
+  linkEmail();
+
   // Readymag applies UA classes after load, so check .isphone live inside the handlers.
   function isPhone() { return document.documentElement.classList.contains('isphone'); }
 
