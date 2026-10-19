@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: 'tests',
+  // tests/live.spec.js hits the published site: run it with  LIVE=1 npx playwright test tests/live.spec.js --project=iphone-webkit
+  testIgnore: process.env.LIVE ? [] : ['**/live.spec.js'],
   timeout: 20000,
   use: { baseURL: 'http://127.0.0.1:8787' },
   webServer: { command: 'python3 -m http.server 8787 --bind 127.0.0.1', url: 'http://127.0.0.1:8787/tests/harness.html', reuseExistingServer: true },

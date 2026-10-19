@@ -42,7 +42,7 @@
     '  #ames-player .ames-controls{flex:0 0 auto;}',
     '  #ames-player .ames-play{width:26px;height:26px;font-size:11px;}',
     '  #ames-player .ames-tags{display:none;}',
-    '  #ames-player .ames-prog{flex:0 0 80px;}',
+    '  #ames-player .ames-prog{flex:0 0 80px;width:80px;}', // explicit width: WebKit ignores flex-basis when sizing .ames-controls
     '}'
   ].join('\n');
 

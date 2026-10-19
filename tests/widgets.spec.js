@@ -83,3 +83,16 @@ test('player fits the 320x78 phone strip without overflow', async ({ page }) => 
   const over = await page.evaluate(() => { const p = document.getElementById('ames-player'); return p.scrollHeight - p.clientHeight; });
   expect(over).toBeLessThanOrEqual(1);
 });
+
+test('playing state keeps progress bar and close button inside the phone strip', async ({ page }) => {
+  await page.goto('/tests/harness.html');
+  await expect(page.locator('#ames-mb .ames-light')).toHaveCount(3);
+  await page.evaluate(() => window.postMessage({ amesPlayer: true, action: 'play',
+    track: { title: 'A Very Long Track Title That Should Truncate (Interlude) 120 BPM', tags: [], src: '/tests/silence.wav' } }, '*'));
+  await expect(page.locator('#ames-player')).toHaveClass(/active/);
+  const box = await page.locator('#ames-player').boundingBox();
+  for (const sel of ['.ames-play', '.ames-prog', '.ames-close']) {
+    const b = await page.locator('#ames-player ' + sel).boundingBox();
+    expect(b.x + b.width, sel + ' right edge').toBeLessThanOrEqual(box.x + box.width);
+  }
+});
