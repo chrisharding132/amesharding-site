@@ -18,7 +18,7 @@ phone-sized on portrait screens; it starts downloading before anything else. -->
 <style>
 .widget-background{background-image:url("${img('bg-landscape.jpg')}");background-size:cover;background-position:50% 50%;background-repeat:no-repeat}
 @media (max-aspect-ratio:1/1){.widget-background{background-image:url("${img('bg-portrait.jpg')}")}}
-a[href^="mailto:"],a[href^="mailto:"] *{color:inherit!important;text-decoration:none!important}
+html body a[href^="mailto:"],html body a[href^="mailto:"]:hover,html body a[href^="mailto:"].hover,html body a[href^="mailto:"] *,html body a[href^="mailto:"]:hover *{color:inherit!important;text-decoration:none!important;background:none!important}
 </style>
 `,
   'settings-code.html': `<!-- AMES HARDING — MOBILE VERTICAL PAGING loader.

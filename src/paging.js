@@ -3,7 +3,7 @@
 (function () {
   if (window.__amesPaging) return;
   // window.__amesPaging.last says what the most recent swipe did (handy from Safari's Web Inspector)
-  var dbg = window.__amesPaging = { ready: false, last: null };
+  var dbg = window.__amesPaging = { ready: false, last: null, openEmail: function (u) { location.href = u; } };
 
   var st = document.createElement('style');
   st.id = 'ames-paging-css';
@@ -40,7 +40,7 @@
     var a = e.target.closest && e.target.closest('a[href^="mailto:"]');
     if (!a || a.getAttribute('href') === 'mailto:' + EMAIL || !/ameshardingmusic@gmail\.co$/.test(a.getAttribute('href'))) return;
     e.preventDefault(); e.stopPropagation();
-    location.href = 'mailto:' + EMAIL;
+    dbg.openEmail('mailto:' + EMAIL);
   }, true);
 
   // Readymag applies UA classes after load, so check .isphone live inside the handlers.
