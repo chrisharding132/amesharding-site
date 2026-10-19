@@ -7,16 +7,19 @@ test('phone on 4G: time until page 1 background is painted', async ({ page }) =>
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Network.enable');
   await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 170, downloadThroughput: 9e6 / 8, uploadThroughput: 1.5e6 / 8 });
+  // SWAP_BG=<jpg> simulates the optimized background being uploaded
+  if (process.env.SWAP_BG) await page.route(/image-02b4c83d-3e14-4d02-bacb-acb0fd6c588c/, (r) => r.fulfill({ path: process.env.SWAP_BG, contentType: 'image/jpeg' }));
   const t0 = Date.now();
   await page.goto('https://amesharding.com/', { waitUntil: 'commit' });
   const marks = {};
   await page.waitForFunction(() => document.querySelector('.rmwidget img, .rmwidget.text'), null, { timeout: 60000 }); marks.firstWidget = Date.now() - t0;
-  await page.waitForFunction(() => {
+  // background painted = the .picture-background element exists and its image has finished downloading
+  await page.waitForFunction(async () => {
     const bg = document.querySelector('.page.center-page .widget-background .picture-background');
-    if (!bg) return false;
-    const u = (/url\("?([^")]+)/.exec(getComputedStyle(bg).backgroundImage) || [])[1];
-    return u && performance.getEntriesByName(u).some((e) => e.responseEnd > 0);
-  }, null, { timeout: 60000, polling: 100 });
+    const u = bg && (/url\("?([^")]+)/.exec(getComputedStyle(bg).backgroundImage) || [])[1];
+    if (!u) return false;
+    return performance.getEntriesByType('resource').some((e) => e.name.split('?')[0] === u.split('?')[0] && e.responseEnd > 0);
+  }, null, { timeout: 60000, polling: 200 });
   marks.background = Date.now() - t0;
   marks.totalKB = await page.evaluate(() => Math.round(performance.getEntriesByType('resource').reduce((a, e) => a + (e.transferSize || 0), 0) / 1024));
   console.log('4G', JSON.stringify(marks));
