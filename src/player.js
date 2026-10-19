@@ -245,9 +245,17 @@
   // Music keeps playing across pages. Away from the full player, a now-playing bar shows the track,
   // play/pause and close; tapping the title steps back to the Mood Browser page.
   var mini = null;
+  // fully in view (not just a sliver of the neighbouring page during a slide)
   function fullPlayerOnScreen() {
     var r = P.el && P.el.isConnected ? P.el.getBoundingClientRect() : null;
-    return !!(r && r.width > 0 && r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth);
+    return !!(r && r.width > 0 && r.left >= -2 && r.right <= innerWidth + 2 && r.bottom > 0 && r.top < innerHeight);
+  }
+  // which Readymag page holds the full player: its position among the pages, not a timing guess
+  function playerPageNum() {
+    var page = P.el && P.el.isConnected && P.el.closest('.page');
+    var pages = page ? Array.prototype.slice.call(document.querySelectorAll('.mag .page')) : [];
+    var i = pages.indexOf(page);
+    return i >= 0 ? i + 1 : null;
   }
   function buildMini() {
     mini = document.createElement('div');
@@ -287,7 +295,7 @@
     var mag = window.RM && RM.viewerRouter && RM.viewerRouter.mag;
     var home = P.el && P.el.closest('.page');
     if (!mag || !mag.currentPage) return;
-    var target = P.homePage || 2, tries = 0;
+    var target = playerPageNum() || P.homePage || 2, tries = 0;
     (function step() {
       if (fullPlayerOnScreen() || tries++ > 20) return;
       var n = mag.currentPage.num;
@@ -299,7 +307,7 @@
   }
   setInterval(function () {
     var mag = window.RM && RM.viewerRouter && RM.viewerRouter.mag;
-    if (fullPlayerOnScreen() && mag && mag.currentPage) P.homePage = mag.currentPage.num;   // remember where the full player lives
+    var n = playerPageNum(); if (n) P.homePage = n;   // remember where the full player lives (Readymag may unload it later)
     syncMini();
   }, 300);
 
