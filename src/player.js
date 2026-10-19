@@ -289,8 +289,10 @@
     if (!mag || !mag.currentPage) return;
     var target = P.homePage || 2, tries = 0;
     (function step() {
+      if (fullPlayerOnScreen() || tries++ > 20) return;
       var n = mag.currentPage.num;
-      if (n === target || tries++ > 8) return;
+      // tapped mid-transition: Readymag may not have updated the current page yet, so wait and look again
+      if (n === target) return setTimeout(step, 200);
       if (n > target) mag.goPrevPage(); else mag.goNextPage();
       setTimeout(step, ((mag.getPageTransitionTime && (function () { try { return mag.getPageTransitionTime(); } catch (e) { return 550; } })()) || 550) + 120);
     })();
