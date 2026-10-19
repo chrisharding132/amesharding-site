@@ -1,10 +1,11 @@
 // Live layout check on several screens. LIVE=1 [LOCAL=1] npx playwright test tests/live-layout.spec.js --project=iphone-webkit
 import { test, expect, devices } from '@playwright/test';
+import { chromeIOS } from './phones.js';
 import { readFileSync } from 'node:fs';
 
 const SCREENS = {
   'iPhone SE': devices['iPhone SE'], 'iPhone 13': devices['iPhone 13'], 'iPhone 15 Pro Max': devices['iPhone 15 Pro Max'],
-  'Galaxy S9+': devices['Galaxy S9+'], 'Desktop 1440': { viewport: { width: 1440, height: 900 } }, 'Laptop 1280': { viewport: { width: 1280, height: 720 } },
+  'Galaxy S9+': devices['Galaxy S9+'], 'Chrome iOS 13': chromeIOS, 'Desktop 1440': { viewport: { width: 1440, height: 900 } }, 'Laptop 1280': { viewport: { width: 1280, height: 720 } },
 };
 
 for (const [name, dev] of Object.entries(SCREENS)) {

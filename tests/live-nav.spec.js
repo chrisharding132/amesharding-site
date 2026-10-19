@@ -1,5 +1,6 @@
 // Live navigation feel. LIVE=1 [LOCAL=1] npx playwright test tests/live-nav.spec.js
 import { test, expect, devices } from '@playwright/test';
+import { PHONE } from './phones.js';
 import { readFileSync } from 'node:fs';
 
 async function local(page) {
@@ -23,7 +24,7 @@ async function drag(page, dy, ms, release = true) {
 }
 
 test.describe('phone', () => {
-  const { defaultBrowserType, ...dev } = devices['iPhone 13'];
+  const { defaultBrowserType, ...dev } = PHONE;
   test.use(dev);
   test('page follows the finger, springs back, flicks and drags turn the page', async ({ page }) => {
     test.setTimeout(60000);

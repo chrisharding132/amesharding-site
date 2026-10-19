@@ -22,15 +22,19 @@
     // glide only for later re-layouts (rotation, address bar), never on first placement
     '#ames-mb .ames-stage.on .ames-light{transition:transform .25s ease,opacity .3s ease,filter .3s ease,left .4s ease,top .4s ease;}',
     '#ames-mb .ames-light:hover{transform:scale(1.35);}',
-    // loading ring + playing pulse, drawn around the light without touching its drift/twinkle animation
-    '#ames-mb .ames-light::after{content:"";position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;box-sizing:border-box;opacity:0;transition:opacity .25s ease;}',
-    '#ames-mb .ames-light.loading::after{opacity:1;border:1.5px solid rgba(240,232,218,.2);border-top-color:rgba(240,232,218,.95);animation:ames-ring .9s linear infinite;}',
-    '#ames-mb .ames-light.playing::after{opacity:1;border:1px solid rgba(232,93,117,.7);animation:ames-ping 1.8s ease-out infinite;}',
-    '@keyframes ames-ring{to{transform:rotate(360deg)}}',
-    '@keyframes ames-ping{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.6);opacity:0}}',
+    // playing: a soft, grainy halo that breathes (grain = the same fractal-noise texture as the page)
+    '#ames-mb .ames-light::after{content:"";position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px 0 0 -35px;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .6s ease;',
+    '  background:radial-gradient(circle,rgba(236,182,146,0) 30%,rgba(236,182,146,.30) 45%,rgba(232,93,117,.22) 56%,rgba(232,93,117,0) 72%);',
+    '  -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 70 70\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'1.4\' numOctaves=\'2\'/%3E%3CfeColorMatrix values=\'0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.6 -0.25\'/%3E%3C/filter%3E%3Crect width=\'70\' height=\'70\' filter=\'url(%23n)\'/%3E%3C/svg%3E");',
+    '  mask-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 70 70\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'1.4\' numOctaves=\'2\'/%3E%3CfeColorMatrix values=\'0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.6 -0.25\'/%3E%3C/filter%3E%3Crect width=\'70\' height=\'70\' filter=\'url(%23n)\'/%3E%3C/svg%3E");}',
+    '#ames-mb .ames-light.playing::after{opacity:1;animation:ames-breathe 3.6s ease-in-out infinite;}',
+    '@keyframes ames-breathe{0%,100%{transform:scale(.82);opacity:.55}50%{transform:scale(1.12);opacity:.95}}',
     '@media (prefers-reduced-motion:reduce){#ames-mb .ames-light::after{animation:none!important}}',
     '#ames-mb .ames-light.sel{background:radial-gradient(circle,rgba(232,93,117,.95) 0%,rgba(232,93,117,.75) 6%,rgba(232,93,117,.32) 14%,rgba(232,93,117,.1) 32%,rgba(232,93,117,0) 58%);}',
-    '@keyframes ames-drift{0%{margin-top:-30px;margin-left:-30px}25%{margin-top:-26px;margin-left:-33px}50%{margin-top:-33px;margin-left:-28px}75%{margin-top:-27px;margin-left:-26px}100%{margin-top:-30px;margin-left:-30px}}',
+    // floating: slow loose loops of up to ~12px (translate, so it never fights the hover scale)
+    '@keyframes ames-float-a{0%,100%{translate:0 0}25%{translate:9px -10px}50%{translate:-4px -14px}75%{translate:-11px -3px}}',
+    '@keyframes ames-float-b{0%,100%{translate:0 0}30%{translate:-10px 7px}55%{translate:5px 12px}80%{translate:11px -4px}}',
+    '@keyframes ames-float-c{0%,100%{translate:0 0}20%{translate:7px 9px}50%{translate:13px -5px}75%{translate:-7px -11px}}',
     '@keyframes ames-twinkle{0%,100%{opacity:1}50%{opacity:.72}}',
     '@media (prefers-reduced-motion:reduce){#ames-mb .ames-light{animation:none!important}}',
     '#ames-mb .ames-light.hid{animation:none!important;opacity:.1;filter:grayscale(1);pointer-events:none;}'
@@ -135,7 +139,7 @@
     p: { w: 700,  h: 1051, top: [43.6, 0.3, 55.0, 4.3], bottom: [43.9, 95.1, 54.7, 99.0], side: [[0.4, 49.1, 24.4, 51.1], [67.3, 49.2, 99.7, 51.0]] }
   };
   var R = 16;      // visible radius of a light (the 46px glow fades out well before its edge)
-  var DRIFT = 10;  // ames-drift pulls a light up to 10px up/left of its spot
+  var DRIFT = 14;  // ames-float carries a light up to ~13px from its spot in any direction
 
   // Top edge of the player's open panel, in the box's own coordinates (Infinity if it doesn't overlap).
   // Everything is measured relative to each element's own Readymag page, so it is right even while the
@@ -178,8 +182,8 @@
     var s = Math.min(W / L.w, H / L.h), ox = (W - L.w * s) / 2, oy = (H - L.h * s) / 2;
     function rect(r) { return [ox + r[0] / 100 * L.w * s, oy + r[1] / 100 * L.h * s, ox + r[2] / 100 * L.w * s, oy + r[3] / 100 * L.h * s]; }
     var pad = R + 6;
-    var x0 = R + DRIFT, x1 = W - R;
-    var y0 = Math.max(R + DRIFT, rect(L.top)[3] + pad), y1 = Math.min(H - R, rect(L.bottom)[1] - pad);
+    var x0 = R + DRIFT, x1 = W - R - DRIFT;
+    var y0 = Math.max(R + DRIFT, rect(L.top)[3] + pad), y1 = Math.min(H - R - DRIFT, rect(L.bottom)[1] - pad);
     var obstacles = L.side.map(rect).map(function (o) { return [o[0] - pad, o[1] - pad, o[2] + pad, o[3] + pad]; });
 
     var pts = lights.map(function (l) {
@@ -230,7 +234,7 @@
     box._lights = S.tracks.map(function (t) {
       var el = document.createElement('div');
       el.className = 'ames-light';
-      el.style.animation = 'ames-drift ' + rnd(7, 12) + 's ease-in-out -' + rnd(0, 10) + 's infinite, ' +
+      el.style.animation = 'ames-float-' + 'abc'.charAt(Math.floor(Math.random() * 3)) + ' ' + rnd(7, 12) + 's ease-in-out -' + rnd(0, 12) + 's infinite, ' +
         'ames-twinkle ' + rnd(2.5, 6) + 's ease-in-out -' + rnd(0, 5) + 's infinite';
       // start fetching the track as soon as a finger lands or the cursor settles on the light
       var prime = function () { window.postMessage({ amesPlayer: true, action: 'prime', src: t.src }, '*'); };

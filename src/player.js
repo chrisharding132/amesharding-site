@@ -36,7 +36,6 @@
     '#ames-player.active .ames-idle{display:none;}',
     '#ames-player.active .ames-info{display:flex;}',
     '#ames-player.active .ames-play,#ames-player.active .ames-prog,#ames-player.active .ames-close{display:block;}',
-    '#ames-player.loading .ames-play{animation:ames-spin 1s linear infinite;background:none;border:1px solid rgba(240,232,218,.25);border-top-color:#F0E8DA;color:transparent;}',
     '@keyframes ames-spin{to{transform:rotate(360deg)}}',
     // now-playing bar: every page except the one showing the full player
     "#ames-mini{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));z-index:10002;transform:translate(-50%,20px);opacity:0;pointer-events:none;",
@@ -51,8 +50,7 @@
     '#ames-mini .t small{display:block;color:rgba(240,232,218,.55);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;margin-top:2px;}',
     '#ames-mini button.b{flex:none;width:30px;height:30px;border-radius:50%;border:0;cursor:pointer;color:#F0E8DA;background:rgba(240,232,218,.1);font-size:11px;}',
     '#ames-mini button.x{background:none;color:rgba(240,232,218,.6);font-size:13px;}',
-    '#ames-mini.loading button.b{animation:ames-spin 1s linear infinite;background:none;border:1px solid rgba(240,232,218,.25);border-top-color:#F0E8DA;color:transparent;}',
-    '@media (prefers-reduced-motion:reduce){#ames-mini.playing .dot,#ames-mini.loading button.b,#ames-player.loading .ames-play{animation:none}}',
+    '@media (prefers-reduced-motion:reduce){#ames-mini.playing .dot{animation:none}}',
     // desktop idle prompt: centred on the whole player, not just the middle column
     '#ames-player:not(.active) .ames-idle{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;}'
   ].join('\n');
@@ -66,6 +64,7 @@
     '  #ames-player.active{position:absolute;left:0;right:0;bottom:0;height:auto;min-height:100%;align-content:end;padding:10px 12px 8px;}',
     '  #ames-player .ames-fbtn{font-size:8px;padding:2px 6px;letter-spacing:.1em;}',
     '  #ames-player .ames-right{flex-direction:column;align-items:stretch;justify-content:flex-start;gap:5px;}',
+    '  #ames-player:not(.active) .ames-right{align-items:center;padding-top:6px;}',
     '  #ames-player .ames-info{max-width:none;flex:none;gap:4px;}',
     '  #ames-player .ames-title{font-size:12px;line-height:1.3;white-space:normal;text-overflow:clip;',
     '    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;}',
@@ -248,7 +247,8 @@
   // fully in view (not just a sliver of the neighbouring page during a slide)
   function fullPlayerOnScreen() {
     var r = P.el && P.el.isConnected ? P.el.getBoundingClientRect() : null;
-    return !!(r && r.width > 0 && r.left >= -2 && r.right <= innerWidth + 2 && r.bottom > 0 && r.top < innerHeight);
+    var vw = document.documentElement.clientWidth || innerWidth;
+    return !!(r && r.width > 0 && r.left >= -2 && r.right <= vw + 2 && r.bottom > 0 && r.top < innerHeight);
   }
   // which Readymag page holds the full player: its position among the pages, not a timing guess
   function playerPageNum() {
@@ -273,7 +273,9 @@
   function syncMini() {
     if (!document.body) return;
     if (!mini) buildMini();
-    var show = !!P.track && P.state !== 'stopped' && !fullPlayerOnScreen();
+    var mag = window.RM && RM.viewerRouter && RM.viewerRouter.mag, home = playerPageNum() || P.homePage;
+    var onPlayerPage = mag && mag.currentPage && home ? mag.currentPage.num === home : fullPlayerOnScreen();
+    var show = !!P.track && P.state !== 'stopped' && !onPlayerPage;
     mini.classList.toggle('on', show);
     mini.classList.toggle('playing', playing());
     mini.classList.toggle('loading', P.state === 'loading');

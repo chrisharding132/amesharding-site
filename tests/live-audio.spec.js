@@ -1,6 +1,7 @@
 // Live: tap-to-sound time, music across pages, now-playing bar. LIVE=1 npx playwright test tests/live-audio.spec.js
 import { test, expect, devices } from '@playwright/test';
-for (const [name, d] of Object.entries({ phone: devices['iPhone 13'], desktop: { viewport: { width: 1440, height: 900 } } })) {
+import { PHONE } from './phones.js';
+for (const [name, d] of Object.entries({ phone: PHONE, desktop: { viewport: { width: 1440, height: 900 } } })) {
   const { defaultBrowserType, ...use } = d;
   test.describe(name, () => {
     test.use(use);
@@ -15,6 +16,8 @@ for (const [name, d] of Object.entries({ phone: devices['iPhone 13'], desktop: {
       await light.dispatchEvent('click');
       await expect(light).toHaveClass(/playing/, { timeout: 15000 });
       const startMs = Date.now() - t0;
+      await page.waitForTimeout(700);
+      await expect(page.locator('#ames-mini'), 'no now-playing bar on the page with the full player').not.toHaveClass(/\bon\b/);
       const src = await page.evaluate(() => document.querySelector('audio') ? null : null) ;
       const playingSrc = await page.evaluate(() => { const P = window.__amesPlayer; return P.resolve(P.track.src); });
       // leave the page: music continues, bar appears

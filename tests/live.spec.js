@@ -29,7 +29,7 @@ async function swipe(page, dy) {
 
 test('live amesharding.com: paging, mood browser and player', async ({ page }) => {
   test.setTimeout(60000);
-  test.skip(test.info().project.name !== 'iphone-webkit', 'swipe paging is phone-only');
+  test.skip(!['iphone-webkit', 'chrome-ios-webkit'].includes(test.info().project.name), 'swipe paging is phone-only');
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });

@@ -1,6 +1,7 @@
 /* AMES HARDING — MOBILE VERTICAL PAGING (TikTok-style)
    Requires the Phone portrait viewport to use the Vertical viewer. One swipe = one page. */
 (function () {
+  var BASE = (document.currentScript && document.currentScript.src || '').replace(/[^/]*$/, '');
   if (window.__amesPaging) return;
   // window.__amesPaging.last says what the most recent swipe did (handy from Safari's Web Inspector)
   var dbg = window.__amesPaging = { ready: false, last: null, openEmail: function (u) { location.href = u; } };
@@ -39,7 +40,13 @@
     '  transition:opacity .25s ease,transform .25s ease;}',
     '#ames-toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto;}',
     '#ames-toast a{color:rgba(240,232,218,.75)!important;text-decoration:none;border-bottom:1px solid rgba(240,232,218,.3);padding-bottom:1px;}',
-    '#ames-toast a:hover{color:#F0E8DA!important;}'
+    '#ames-toast a:hover{color:#F0E8DA!important;}',
+    // phones at rest: only the current page shows (no slivers of the neighbours); a fixed sky sits behind.
+    // While a finger is down or a page is gliding the neighbours are shown, so they can slide in.
+    '.isphone.ames-still .mag.viewer-type-vertical .page:not(.center-page){visibility:hidden;}',
+    '.isphone .mag.viewer-type-vertical{background:transparent!important;}',
+    '#ames-sky{position:fixed;inset:0;z-index:-1;pointer-events:none;background:#7a6485 center/cover no-repeat;}',
+    '#ames-debug{position:fixed;left:6px;top:6px;z-index:2147483647;max-width:calc(100vw - 12px);padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.78);color:#9f9;font:10px/1.35 ui-monospace,Menlo,monospace;white-space:pre-wrap;pointer-events:none;}'
   ].join('\n');
   document.head.appendChild(st);
 
@@ -109,6 +116,43 @@
     .observe(document.documentElement, { childList: true, subtree: true });
   linkEmail();
 
+  // ---- zoom recovery (Chrome on iOS can stay zoomed in, e.g. after a form field took focus) ----
+  function zoomed() { return !!(window.visualViewport && visualViewport.scale > 1.02); }
+  function resetZoom() {
+    if (!isPhone() || !zoomed()) return;
+    var f = document.activeElement;
+    if (f && /^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName)) return;     // still typing: leave it
+    var m = document.querySelector('meta[name=viewport]');
+    if (!m) return;
+    // re-applying the viewport tag makes iOS re-fit the page at scale 1
+    m.content = 'width=device-width,initial-scale=1.0,maximum-scale=1.0';
+    setTimeout(function () { m.content = 'width=device-width,initial-scale=1,maximum-scale=1'; }, 60);
+    dbg.zoomResets = (dbg.zoomResets || 0) + 1;
+  }
+  document.addEventListener('focusout', function () { setTimeout(resetZoom, 350); }, true);
+
+  // ---- diagnostics overlay: open amesharding.com/#ames-debug (stays on while browsing this tab) ----
+  var DEBUG = /ames-debug/.test(location.hash + location.search);
+  try { if (DEBUG) sessionStorage.setItem('ames-debug', '1'); else DEBUG = sessionStorage.getItem('ames-debug') === '1'; } catch (e) {}
+  function debugPanel(mag) {
+    var el = document.createElement('div'); el.id = 'ames-debug'; document.body.appendChild(el);
+    setInterval(function () {
+      var vv = window.visualViewport, P = window.__amesPlayer || {}, pg = document.querySelector('.mag .page');
+      var ua = navigator.userAgent, br = /CriOS/.test(ua) ? 'Chrome iOS' : /FxiOS/.test(ua) ? 'Firefox iOS' : /Safari/.test(ua) && /iPhone|iPad/.test(ua) ? 'Safari iOS' : 'other';
+      el.textContent = [
+        'browser ' + br + '  dpr ' + devicePixelRatio,
+        'inner ' + innerWidth + 'x' + innerHeight + '  client ' + document.documentElement.clientWidth + 'x' + document.documentElement.clientHeight + '  screen ' + screen.width + 'x' + screen.height,
+        'zoom ' + (vv ? vv.scale.toFixed(2) + '  vv ' + Math.round(vv.width) + 'x' + Math.round(vv.height) + ' @' + Math.round(vv.offsetLeft) + ',' + Math.round(vv.offsetTop) : 'n/a') + '  resets ' + (dbg.zoomResets || 0),
+        'scrollY ' + Math.round(scrollY) + '  pageH ' + (pg ? pg.offsetHeight : '?') + '  docW ' + document.documentElement.scrollWidth,
+        'page ' + (mag.currentPage && mag.currentPage.num) + '/' + (function () { try { return mag.getPagesCount(); } catch (e) { return '?'; } })() + '  viewer ' + ((document.querySelector('.mag') || {}).className || '').replace(/.*viewer-type-(\w+).*/, '$1'),
+        'isphone ' + isPhone() + '  reduceMotion ' + matchMedia('(prefers-reduced-motion: reduce)').matches,
+        'player ' + (P.state || '-') + '  playerPage ' + (P.homePage || '-') + '  bar ' + ((document.getElementById('ames-mini') || {}).className || '-'),
+        'meta ' + ((document.querySelector('meta[name=viewport]') || {}).content || ''),
+        'ua ' + ua.slice(0, 110)
+      ].join('\n');
+    }, 400);
+  }
+
   // Readymag applies UA classes after load, so check .isphone live inside the handlers.
   function isPhone() { return document.documentElement.classList.contains('isphone'); }
 
@@ -125,10 +169,12 @@
     // ---- phone: the page column is the window scroll; we drive it so the page follows the finger ----
     var glide = null;
     function stopGlide() { if (glide) { cancelAnimationFrame(glide); glide = null; } }
+    function still(on) { document.documentElement.classList.toggle('ames-still', on); }
     function glideTo(y, speed) {
       stopGlide();
+      still(false);
       var from = scrollY, dist = y - from;
-      if (Math.abs(dist) < 1) { scrollTo(0, y); return; }
+      if (Math.abs(dist) < 1) { scrollTo(0, y); still(true); return; }
       // faster flicks finish faster; short corrections are quick
       var dur = reduce ? 120 : Math.max(200, Math.min(480, Math.abs(dist) / Math.max(0.9, Math.abs(speed || 0)) * 0.9 + 140));
       var t0 = performance.now();
@@ -136,6 +182,7 @@
         var k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);   // ease-out cubic
         scrollTo(0, from + dist * e);
         glide = k < 1 ? requestAnimationFrame(frame) : null;
+        if (!glide) still(true);
       })(t0);
     }
     function goTo(n) {   // 1-based page number, used by the swipe hint and the now-playing bar
@@ -169,6 +216,7 @@
         axis = Math.abs(dy) > Math.abs(dx) * 1.2 ? 'y' : 'x';
       }
       if (axis !== 'y' || !vertical()) return;
+      still(false);                                  // reveal the neighbours only once a vertical drag starts
       samples.push([performance.now(), y]); if (samples.length > 6) samples.shift();
       var max = document.documentElement.scrollHeight - innerHeight, target = s0 - dy;
       // past the first/last page: resist instead of moving 1:1
@@ -181,7 +229,11 @@
       var last = samples[samples.length - 1] || [0, y], first = samples[0] || last;
       var v = (last[1] - first[1]) / Math.max(1, last[0] - first[0]);       // px/ms, negative = finger moving up
       dbg.last = { dy: Math.round(dy), v: +v.toFixed(2), axis: axis, phone: isPhone(), vertical: !!vertical() };
-      if (!isPhone() || axis !== 'y') return;
+      if (!isPhone() || axis !== 'y') {
+        // a tap (possibly catching a gliding page): settle on the nearest page
+        if (vertical()) { var Hn = pageH(), near = Math.round(scrollY / Hn) * Hn; if (Math.abs(scrollY - near) > 1) glideTo(near, 1); else still(true); }
+        return;
+      }
       if (!vertical()) {                              // phone in landscape (horizontal viewer): plain page turn
         if (Math.abs(dy) > innerHeight * 0.15) { if (dy < 0) mag.goNextPage(); else mag.goPrevPage(); }
         return;
@@ -230,6 +282,16 @@
 
     dbg.ready = true;
     noFormZoom();
+    if (isPhone()) {
+      var sky = document.createElement('div'); sky.id = 'ames-sky';
+      sky.style.backgroundImage = 'url("' + BASE + 'assets/' + (innerWidth < innerHeight ? 'bg-portrait.jpg' : 'bg-landscape.jpg') + '")';
+      document.body.insertBefore(sky, document.body.firstChild);
+      still(true);
+      setTimeout(resetZoom, 600);
+    }
+    if (DEBUG) debugPanel(mag);
+    var lastPageForZoom = curIdx();
+    setInterval(function () { var i = curIdx(); if (i !== lastPageForZoom) { lastPageForZoom = i; resetZoom(); } }, 500);
     buildNav(mag);
   }
 

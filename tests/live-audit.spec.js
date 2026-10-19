@@ -1,8 +1,9 @@
 // Whole-site audit on the published site. LIVE=1 npx playwright test tests/live-audit.spec.js
 import { test, devices } from '@playwright/test';
+import { PHONE } from './phones.js';
 import { writeFileSync } from 'node:fs';
 
-const TARGETS = { phone: devices['iPhone 13'], desktop: { viewport: { width: 1440, height: 900 } } };
+const TARGETS = { phone: PHONE, desktop: { viewport: { width: 1440, height: 900 } } };
 
 for (const [kind, dev] of Object.entries(TARGETS)) {
   const { defaultBrowserType, ...use } = dev;

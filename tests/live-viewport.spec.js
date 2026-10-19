@@ -1,8 +1,9 @@
 // The phone map must keep its height + tall labels however you arrive at page 2 and when the browser bar hides.
 // LIVE=1 [LOCAL=1] npx playwright test tests/live-viewport.spec.js --project=iphone-webkit
 import { test, expect, devices } from '@playwright/test';
+import { PHONE } from './phones.js';
 import { readFileSync } from 'node:fs';
-const { defaultBrowserType, ...dev } = devices['iPhone 13'];
+const { defaultBrowserType, ...dev } = PHONE;
 test.use(dev);
 
 test.beforeEach(async ({ page }) => {
@@ -20,6 +21,9 @@ async function check(page, label) {
     return { H: L.H, HB: L.HB, labels: shown && shown.classList.contains('p') ? 'portrait' : 'landscape' };
   });
   await page.screenshot({ path: `audit-results/viewport-${label}.png` });
+  const slivers = await page.evaluate(() => [...document.querySelectorAll('.mag .page:not(.center-page)')].filter((p) => {
+    const r = p.getBoundingClientRect(); return getComputedStyle(p).visibility !== 'hidden' && r.bottom > 1 && r.top < innerHeight - 1; }).length);
+  expect(slivers, label + ' neighbouring pages visible at rest').toBe(0);
   expect(r.labels, label).toBe('portrait');
   expect(r.H / r.HB, label + ' map height kept').toBeGreaterThan(0.8);
 }

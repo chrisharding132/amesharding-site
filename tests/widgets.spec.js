@@ -126,8 +126,8 @@ for (const layout of ['phone', 'desktop']) {
 }
 
 test('no placeholder dots flash before the real data arrives', async ({ page }) => {
-  await page.goto('/tests/harness.html');   // Airtable stand-in answers after 300ms
-  await page.waitForTimeout(120);
+  await page.goto('/tests/harness.html?delay=1500');   // Airtable stand-in answers after 1.5s
+  await page.waitForTimeout(300);
   const early = await page.evaluate(() => ({ lights: document.querySelectorAll('#ames-mb .ames-light').length,
     visible: getComputedStyle(document.querySelector('#ames-mb .ames-stage')).opacity }));
   expect(early.lights).toBe(0);
@@ -187,8 +187,7 @@ for (const layout of ['phone', 'desktop']) {
     });
     expect(r.leftGap, 'type filters at the left padding').toBeLessThan(26);
     expect(r.rightGap, 'tempo filters at the right padding').toBeLessThan(26);
-    if (layout === 'desktop') expect(Math.abs(r.idleCenterOff), 'prompt centred').toBeLessThan(40);
-    else expect(r.idleLeft, 'prompt aligned with the left edge').toBeLessThan(16);
+    expect(Math.abs(r.idleCenterOff), 'prompt centred').toBeLessThan(layout === 'desktop' ? 40 : 6);
   });
 }
 
@@ -220,4 +219,24 @@ test('tapping a light shows loading then playing, and the now-playing bar appear
   await page.locator('#ames-mini .x').click();                                    // stop
   await expect(page.locator('#ames-mini')).not.toHaveClass(/\bon\b/);
   await expect(light).not.toHaveClass(/playing/);
+});
+
+test('lights float visibly (a few px is not enough) and the playing light gets the halo, not a spinner', async ({ page }) => {
+  await page.goto('/tests/harness.html?prefetch=fail');          // final lights straight away (no rebuild mid-measure)
+  await expect(page.locator('#ames-mb .ames-light')).toHaveCount(28);
+  await expect(page.locator('#ames-mb .ames-stage')).toHaveClass(/on/);
+  const names = await page.evaluate(() => getComputedStyle(document.querySelector('#ames-mb .ames-light')).animationName);
+  expect(names).toMatch(/ames-float-[abc]/);
+  await page.waitForTimeout(1500);
+  // where every light is on its float path right now: real floating puts several well away from home
+  const offsets = await page.evaluate(() => [...document.querySelectorAll('#ames-mb .ames-light')].map((e) => {
+    const [x, y] = getComputedStyle(e).translate.split(' ').map(parseFloat); return Math.hypot(x || 0, y || 0); }));
+  expect(Math.max(...offsets), 'furthest light from home (px)').toBeGreaterThan(8);
+  const light = page.locator('#ames-mb .ames-light').nth(1);
+  await light.dispatchEvent('click');                            // it is moving, so click it directly
+  await expect(light).toHaveClass(/playing/, { timeout: 5000 });
+  const halo = await light.evaluate((e) => { const c = getComputedStyle(e, '::after'); return { anim: c.animationName, mask: (c.maskImage || c.webkitMaskImage || '').slice(0, 20), border: c.borderTopWidth }; });
+  expect(halo.anim).toBe('ames-breathe');
+  expect(halo.mask, 'grainy mask on the halo').toContain('url');
+  expect(halo.border, 'no ring/spinner border').toBe('0px');
 });
