@@ -1,0 +1,14 @@
+{
+  "name": "amesharding-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "python3 -m http.server 8787",
+    "lint": "node --check src/mood.js && node --check src/player.js && node --check src/paging.js && node scripts/check-secrets.mjs",
+    "test": "npm run lint && playwright test",
+    "snippets": "node scripts/snippets.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
+  }
+}
