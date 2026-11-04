@@ -408,7 +408,7 @@
   var NAMES = ['Home', 'Listen', 'About', 'Press', 'Contact'];
   function enhance(mag) {
     document.documentElement.lang = document.documentElement.lang || 'en';
-    Array.prototype.forEach.call(document.querySelectorAll('link[rel~="icon"]'), function (l) { if (/\/dist\/img\/favicons\//.test(l.href)) l.remove(); });
+    Array.prototype.forEach.call(document.querySelectorAll('link[rel*="icon"]'), function (l) { if (/\/dist\/img\/favicons\//.test(l.href)) l.remove(); });
     if (!document.getElementById('ames-h1')) {
       var h = document.createElement('h1'); h.id = 'ames-h1'; h.textContent = 'Ames Harding';
       h.style.cssText = 'position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;';
