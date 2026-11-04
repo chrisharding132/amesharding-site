@@ -17,6 +17,7 @@
 <script>
   // ?prefetch=none -> no Airtable; ?prefetch=fail -> rejected; default -> 3 synthetic records after 300ms
   var mode = new URLSearchParams(location.search).get('prefetch');
+  if (!new URLSearchParams(location.search).get('static')) window.__amesNoStatic = true;   // ?static=1 uses src/tracks.json
   function rec(t, type, tempo, x, y) { return { fields: { Title: t, Duration: '0:10', Type: type, Tempo: tempo, Tags: ['a', 'b'],
     'X (organic→electronic)': x, 'Y (dark→light)': y, 'Audio URL': '/tests/silence.wav?' + encodeURIComponent(t) } }; }
   if (mode === 'fail') window.__amesTracksPromise = Promise.resolve(null);

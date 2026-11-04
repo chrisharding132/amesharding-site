@@ -1,0 +1,424 @@
+{
+ "tracks": [
+  {
+   "title": "Groovin' (Break) 130 BPM",
+   "duration": "0:30",
+   "type": "instrumental",
+   "tempo": "high",
+   "tags": [
+    "energetic",
+    "distorted",
+    "urban"
+   ],
+   "x": 0.8,
+   "y": 0.2,
+   "src": "https://www.dropbox.com/scl/fi/d2x8hkdvr1ds44rydq7nt/Groovin-Break-130BPM.mp3?rlkey=jzbhu4f4azyw3ff1w89aniqs4&st=1cq7kazf&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Groovin' (Chorus) 130 BPM",
+   "duration": "0:31",
+   "type": "vocal",
+   "tempo": "high",
+   "tags": [
+    "mellow",
+    "nostalgic",
+    "feel-good"
+   ],
+   "x": 0.12,
+   "y": 0.75,
+   "src": "https://www.dropbox.com/scl/fi/czok1v8t9rnqth1uqe29f/Groovin-Chorus-130BPM.mp3?rlkey=s1dug36nekc5eaefefjzpu5th&st=aipn7irf&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Groovin' (Instrumental) 130 BPM",
+   "duration": "0:31",
+   "type": "instrumental",
+   "tempo": "high",
+   "tags": [
+    "mellow",
+    "seventies",
+    "feel-good"
+   ],
+   "x": 0.3,
+   "y": 0.825,
+   "src": "https://www.dropbox.com/scl/fi/yfz3kr3jdksuvcc686edk/Groovin-Instrumental-130BPM.mp3?rlkey=wgv0n8kr53zjdx4lefxrdillv&st=2k5vrqj0&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Groovin' (Interlude) 130 BPM",
+   "duration": "0:14",
+   "type": "instrumental",
+   "tempo": "high",
+   "tags": [
+    "mellow",
+    "synth",
+    "cinematic"
+   ],
+   "x": 0.6,
+   "y": 0.525,
+   "src": "https://www.dropbox.com/scl/fi/g2pg8s4eflohghlp56g0s/Groovin-Interlude-130BPM.mp3?rlkey=1jrnhiakxvznngmxavamqhgxb&st=d7tl7fku&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Hummin' (Chorus) 140 BPM",
+   "duration": "0:24",
+   "type": "vocal",
+   "tempo": "high",
+   "tags": [
+    "nostalgic",
+    "playful",
+    "energetic"
+   ],
+   "x": 0.35,
+   "y": 0.8,
+   "src": "https://www.dropbox.com/scl/fi/2rww87t47qso6omz2olff/Hummin-Chorus-140BPM.mp3?rlkey=tmysehqzammgqj7g6qgd2s9va&st=qxnsuy3i&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Hummin' (Intro) 140 BPM",
+   "duration": "0:25",
+   "type": "vocal",
+   "tempo": "high",
+   "tags": [
+    "nostalgic",
+    "playful",
+    "flirty"
+   ],
+   "x": 0.24,
+   "y": 0.6,
+   "src": "https://www.dropbox.com/scl/fi/awe9d8fjk0h51c0m1z8fq/Hummin-Intro-140BPM.mp3?rlkey=bzrzlkaffo4k566ozkoghe4ks&st=pl58cf17&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Hummin' (Verse) 140 BPM",
+   "duration": "0:26",
+   "type": "vocal",
+   "tempo": "high",
+   "tags": [
+    "nostalgic",
+    "playful",
+    "flirty"
+   ],
+   "x": 0.4,
+   "y": 0.5,
+   "src": "https://www.dropbox.com/scl/fi/cvarxs6wtbkps8777o66p/Hummin-Verse-140BPM.mp3?rlkey=scjbqtipql5jhiyno9xa8ya3f&st=25wtx5aw&raw=1",
+   "full": ""
+  },
+  {
+   "title": "In This Tender Hour (B Part) 100 BPM",
+   "duration": "0:40",
+   "type": "vocal",
+   "tempo": "mid",
+   "tags": [
+    "groovy",
+    "lilting",
+    "group vocal"
+   ],
+   "x": 0.48,
+   "y": 0.41,
+   "src": "https://www.dropbox.com/scl/fi/tog9skkbwstgyegt1tx8m/In-This-Tender-Hour-B-Part-100-BPM.mp3?rlkey=1h6hkmlcplx1o8ghf9nphj3nd&st=9oscrlde&raw=1",
+   "full": ""
+  },
+  {
+   "title": "In This Tender Hour (Hook) 100 BPM",
+   "duration": "0:23",
+   "type": "vocal",
+   "tempo": "mid",
+   "tags": [
+    "groovy",
+    "dreamy",
+    "falsetto"
+   ],
+   "x": 0.55,
+   "y": 0.45,
+   "src": "https://www.dropbox.com/scl/fi/94j1m6d5x5en89p30i6og/In-This-Tender-Hour-Hook-100BPM.mp3?rlkey=oqdrz3c4elxjc5uaq8jqzlt0o&st=3lxu3d4i&raw=1",
+   "full": ""
+  },
+  {
+   "title": "In This Tender Hour (Outro) 100 BPM",
+   "duration": "0:46",
+   "type": "instrumental",
+   "tempo": "mid",
+   "tags": [
+    "groovy",
+    "dreamy",
+    "percussive"
+   ],
+   "x": 0.64,
+   "y": 0.43,
+   "src": "https://www.dropbox.com/scl/fi/o5dc8lj57r0xnrgs7x4bb/In-This-Tender-Hour-Outro-100BPM.mp3?rlkey=h7hjqn0p60d4fft84rkraavkn&st=lo4ov60u&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Sister of the Lilies (B Part) 90 BPM",
+   "duration": "0:21",
+   "type": "vocal",
+   "tempo": "slow",
+   "tags": [
+    "warm",
+    "intimate",
+    "harmonies"
+   ],
+   "x": 0.38,
+   "y": 0.65,
+   "src": "https://www.dropbox.com/scl/fi/wfws0ifitg09a9sgchr6r/Sister-of-the-Lilies-B-Part-90BPM.mp3?rlkey=vastv5pfsuu0rd9jocxswf46e&st=0zbhkjm2&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Sister of the Lilies (Interlude) 90 BPM",
+   "duration": "0:21",
+   "type": "vocal",
+   "tempo": "slow",
+   "tags": [
+    "warm",
+    "playful",
+    "radio"
+   ],
+   "x": 0.445,
+   "y": 0.625,
+   "src": "https://www.dropbox.com/scl/fi/0jr46blr0j2frhs4kjwx8/Sister-of-the-Lilies-Interlude-90BPM.mp3?rlkey=4qn6ixgw9sscpx09trqdg0z9b&st=7tum643j&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Sister of the Lilies (Intro) 90 BPM",
+   "duration": "0:27",
+   "type": "instrumental",
+   "tempo": "slow",
+   "tags": [
+    "nostalgic",
+    "heartwarming",
+    "intimate"
+   ],
+   "x": 0.21,
+   "y": 0.7,
+   "src": "https://www.dropbox.com/scl/fi/rwna73w6ukub1n6flbba5/Sister-of-the-Lilies-Intro-90BPM.mp3?rlkey=4a2gkbyphnahj7l4ska6pgdl9&st=cvb4vdts&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Sister of the Lilies (Outro) 90 BPM",
+   "duration": "0:22",
+   "type": "vocal",
+   "tempo": "slow",
+   "tags": [
+    "harmonies",
+    "warm",
+    "shimmering"
+   ],
+   "x": 0.05,
+   "y": 0.55,
+   "src": "https://www.dropbox.com/scl/fi/c3sgudcwq0ob36wgenuj3/Sister-of-the-Lilies-Outro-90BPM.mp3?rlkey=af1mo8igiobht4rw9kc6pdu65&st=bv8d352d&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Sister of the Lilies (Verse) 90 BPM",
+   "duration": "0:22",
+   "type": "vocal",
+   "tempo": "slow",
+   "tags": [
+    "pure",
+    "warm",
+    "nostalgic"
+   ],
+   "x": 0.32,
+   "y": 0.865,
+   "src": "https://www.dropbox.com/scl/fi/2zwrdusgiodmurvg7x3o7/Sister-of-the-Lilies-Verse-90BPM.mp3?rlkey=hdci6gpfsu79cs5ylp37cnd5c&st=tg0ow6zx&raw=1",
+   "full": ""
+  },
+  {
+   "title": "The Unblinking Eye (Hook) 100 BPM",
+   "duration": "0:44",
+   "type": "vocal",
+   "tempo": "mid",
+   "tags": [
+    "cinematic",
+    "harmonies",
+    "dreamy"
+   ],
+   "x": 0.085,
+   "y": 0.165,
+   "src": "https://www.dropbox.com/scl/fi/oynuq6qpralebree12eq3/The-Unblinking-Eye-Hook-100BPM.mp3?rlkey=51s1wukw6lkob7pgvw5b6zyxj&st=kpst5ydu&raw=1",
+   "full": ""
+  },
+  {
+   "title": "The Unblinking Eye (Interlude) 100 BPM",
+   "duration": "0:50",
+   "type": "vocal-nolyrics",
+   "tempo": "mid",
+   "tags": [
+    "cinematic",
+    "haunting",
+    "group"
+   ],
+   "x": 0.015,
+   "y": 0.145,
+   "src": "https://www.dropbox.com/scl/fi/10vfoi60pu6ptri3jgqru/The-Unblinking-Eye-Interlude-100BPM.mp3?rlkey=ppji5wr0vayldfpla6ibbg29t&st=zyt55tba&raw=1",
+   "full": ""
+  },
+  {
+   "title": "The Unblinking Eye (Intro) 100 BPM",
+   "duration": "0:29",
+   "type": "vocal",
+   "tempo": "mid",
+   "tags": [
+    "cinematic",
+    "dreamy",
+    "sultry"
+   ],
+   "x": 0.145,
+   "y": 0.245,
+   "src": "https://www.dropbox.com/scl/fi/uuie8vyh12lrk0q33mguc/The-Unblinking-Eye-Intro-100BPM.mp3?rlkey=ah9kyevs74t29qg9rvxsr9uaw&st=yow4lmdc&raw=1",
+   "full": ""
+  },
+  {
+   "title": "The Unblinking Eye (Outro) 100 BPM",
+   "duration": "0:48",
+   "type": "vocal-nolyrics",
+   "tempo": "mid",
+   "tags": [
+    "cinematic",
+    "haunting",
+    "organ"
+   ],
+   "x": 0,
+   "y": 0.19,
+   "src": "https://www.dropbox.com/scl/fi/y8px0drw0vldchbkcfc1t/The-Unblinking-Eye-Outro-100BPM.mp3?rlkey=bzve9h6q0twpko9t6uza4205n&st=1owcvp6z&raw=1",
+   "full": ""
+  },
+  {
+   "title": "The Unblinking Eye (Verse) 100 BPM",
+   "duration": "0:50",
+   "type": "vocal",
+   "tempo": "mid",
+   "tags": [
+    "cinematic",
+    "groovy",
+    "sultry"
+   ],
+   "x": 0.165,
+   "y": 0.27,
+   "src": "https://www.dropbox.com/scl/fi/yj7foexazd8mzdu46errv/The-Unblinking-Eye-Verse-100BPM.mp3?rlkey=4hb256epss4i3297u3407nrly&st=wab7qk99&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Through the Desert (Interlude) 120 BPM",
+   "duration": "0:48",
+   "type": "vocal",
+   "tempo": "mid",
+   "tags": [
+    "harmonies",
+    "dreamy",
+    "group"
+   ],
+   "x": 0.27,
+   "y": 0.35,
+   "src": "https://www.dropbox.com/scl/fi/zydb9yj9nha5g96h7syek/Through-the-Desert-Interlude-120-BPM.mp3?rlkey=iz5bdaw3rnmx27o0swcpf1hpm&st=k9j8r51x&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Through the Desert (Outro) 120 BPM",
+   "duration": "0:32",
+   "type": "instrumental",
+   "tempo": "mid",
+   "tags": [
+    "guitar",
+    "dreamy",
+    "desert"
+   ],
+   "x": 0.575,
+   "y": 0.37,
+   "src": "https://www.dropbox.com/scl/fi/f5inwaah8z1zlbkarr2ya/Through-the-Desert-Outro-120-BPM.mp3?rlkey=oblxnus2ydett2o0aczuakg6k&st=05x0gcmj&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Through the Desert (Verse) 120 BPM",
+   "duration": "0:25",
+   "type": "vocal",
+   "tempo": "mid",
+   "tags": [
+    "expansive",
+    "dreamy",
+    "heartfelt"
+   ],
+   "x": 0.52,
+   "y": 0.37,
+   "src": "https://www.dropbox.com/scl/fi/hm6e1ongsqv5viwfmze55/Through-the-Desert-Verse-120-BPM.mp3?rlkey=hvea1sqwgp30ner27vyfm9hkl&st=5jq26fmu&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Walk the Walk (Chorus) 120 BPM",
+   "duration": "0:16",
+   "type": "vocal",
+   "tempo": "mid",
+   "tags": [
+    "confident",
+    "club",
+    "harmonies"
+   ],
+   "x": 0.76,
+   "y": 0.29,
+   "src": "https://www.dropbox.com/scl/fi/cp1gtnlb4tdqb6t3ugj77/Walk-the-Walk-Chorus-120-BPM.mp3?rlkey=3pzboornexxovsz1j1vn7l5th&st=f23pr2wo&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Walk the Walk (Interlude) 120 BPM",
+   "duration": "0:32",
+   "type": "vocal-nolyrics",
+   "tempo": "mid",
+   "tags": [
+    "warm",
+    "synth",
+    "sultry"
+   ],
+   "x": 0.725,
+   "y": 0.31,
+   "src": "https://www.dropbox.com/scl/fi/ln5dtvpo13wqoyihmb7p5/Walk-the-Walk-Interlude-120-BPM.mp3?rlkey=56w1v45372pd74f6clifh50ci&st=0v53oq08&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Walk the Walk (Intro) 120 BPM",
+   "duration": "0:16",
+   "type": "instrumental",
+   "tempo": "mid",
+   "tags": [
+    "club",
+    "groovy",
+    "percussive"
+   ],
+   "x": 0.845,
+   "y": 0.36,
+   "src": "https://www.dropbox.com/scl/fi/eedqne5grcxasi20g30lk/Walk-the-Walk-Intro-120-BPM.mp3?rlkey=8wm3l8h909lwal65e7iuuezn9&st=bu9brjgi&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Walk the Walk (Outro) 120 BPM",
+   "duration": "0:25",
+   "type": "vocal",
+   "tempo": "mid",
+   "tags": [
+    "confident",
+    "club",
+    "sultry"
+   ],
+   "x": 0.91,
+   "y": 0.36,
+   "src": "https://www.dropbox.com/scl/fi/tn9khe31xa026fpl0zjr3/Walk-the-Walk-Outro-120-BPM.mp3?rlkey=i4vedni5edxgdsjdt8cefbpzw&st=etg47hmi&raw=1",
+   "full": ""
+  },
+  {
+   "title": "Walk the Walk (Verse) 120 BPM",
+   "duration": "0:16",
+   "type": "vocal",
+   "tempo": "mid",
+   "tags": [
+    "confident",
+    "club",
+    "sultry"
+   ],
+   "x": 0.88,
+   "y": 0.315,
+   "src": "https://www.dropbox.com/scl/fi/gpyweo9iglikc15a3ln3c/Walk-the-Walk-Verse-120-BPM.mp3?rlkey=n4xy454qgckcfzxr96tvk2sxw&st=dntaamo1&raw=1",
+   "full": ""
+  }
+ ]
+}

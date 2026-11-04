@@ -13,15 +13,67 @@
     '.isphone body{overscroll-behavior:none;}',
     '.isphone .mag.viewer-type-vertical,.isphone .mag.viewer-type-vertical .mag-pages-container{touch-action:pinch-zoom;}',
     // Readymag's bottom arrow sat on top of the Mood Player; the rail + hint below replace it on phones.
-    '.isphone .navigation-arrow{display:none!important;}',
-    '#ames-nav{display:none;}',
+    // the rail and hint replace Readymag's arrows everywhere; scrolling is the one way through the site on every device
+    '.navigation-arrow{display:none!important;}',
+    '#ames-nav{opacity:0;transition:opacity .6s ease;}',
+    '#ames-nav.ready{opacity:1;}',
     // fades in only once the page behind it has painted, so it never floats over a blank screen
-    '.isphone #ames-nav{display:block;opacity:0;transition:opacity .6s ease;}',
-    '.isphone #ames-nav.ready{opacity:1;}',
+
     // page rail: one dot per page, current page drawn as a short pill
     '#ames-rail{position:fixed;right:9px;top:50%;transform:translateY(-50%);z-index:10000;display:flex;flex-direction:column;gap:8px;pointer-events:none;}',
+    '#ames-rail button{display:block;position:relative;padding:0;border:0;background:none;color:inherit;}',
     '#ames-rail i{display:block;width:4px;height:4px;border-radius:2px;background:rgba(240,232,218,.38);transition:height .35s ease,background .35s ease;}',
     '#ames-rail i.on{height:16px;background:rgba(240,232,218,.9);}',
+    // desktop: bigger targets, clickable, page names on hover
+    'html:not(.isphone) #ames-rail{right:14px;gap:0;pointer-events:auto;}',
+    'html:not(.isphone) #ames-rail button{padding:7px 10px;cursor:pointer;}',
+    'html:not(.isphone) #ames-rail i{width:5px;height:5px;}',
+    'html:not(.isphone) #ames-rail i.on{height:20px;}',
+    'html:not(.isphone) #ames-rail button:hover i,html:not(.isphone) #ames-rail button:focus-visible i{background:#F0E8DA;}',
+    "#ames-rail span{position:absolute;right:26px;top:50%;transform:translate(6px,-50%);opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;white-space:nowrap;color:#F0E8DA;",
+    "  font:300 10px/1 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.2em;text-transform:uppercase;text-shadow:0 0 12px rgba(52,48,96,.8);}",
+    'html:not(.isphone) #ames-rail button:hover span,html:not(.isphone) #ames-rail button:focus-visible span{opacity:1;transform:translate(0,-50%);}',
+    'html:not(.isphone) #ames-rail button:focus-visible{outline:1px solid rgba(240,232,218,.7);outline-offset:-2px;border-radius:3px;}',
+    // landing page: Listen
+    "#ames-listen{position:absolute;left:50%;transform:translateX(-50%);z-index:50;display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:999px;cursor:pointer;color:#F0E8DA;white-space:nowrap;",
+    "  background:rgba(52,48,96,.28);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid rgba(240,232,218,.35);transition:background .25s ease,border-color .25s ease;",
+    "  font:300 9.5px/1 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.24em;text-transform:uppercase;}",
+    '#ames-listen:hover,#ames-listen:focus-visible{background:rgba(232,93,117,.35);border-color:rgba(240,232,218,.6);outline:none;}',
+    '#ames-listen svg{width:9px;height:9px;fill:currentColor;}',
+    // moving photos: held while pointed at or pressed
+    '.page.ames-hold .animation-container{animation-play-state:paused!important;}',
+    // quotes read better left-aligned than justified (wide gaps on phones)
+    '.mag .widget-text-v3 .align-justify,.mag .widget-text-v3 [style*="text-align: justify"],.mag .widget-text-v3 [style*="text-align:justify"]{text-align:left!important;}',
+    // ---- contact form: underlined fields with floating labels on the sky, frosted send button ----
+    '.widget-form{overflow:visible!important;height:auto!important;}',
+    ".widget-form .input-wrapper{position:relative!important;height:50px!important;margin-bottom:6px!important;background:none!important;border-radius:0!important;box-shadow:none!important;border-bottom:1px solid rgba(240,232,218,.32);transition:border-color .25s ease,box-shadow .25s ease;}",
+    '.widget-form .input-wrapper.is-multiline{height:112px!important;}',
+    '.widget-form .input-wrapper:focus-within{border-bottom-color:#F0E8DA;box-shadow:0 1px 0 0 rgba(240,232,218,.55);}',
+    '.widget-form .overlay{display:none!important;}',
+    ".widget-form input.js-input:not([type=checkbox]),.widget-form textarea.js-input{position:absolute!important;left:0!important;right:0!important;top:20px!important;bottom:4px!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;outline:0!important;background:none!important;resize:none;box-sizing:border-box;",
+    "  font:300 15px/1.35 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif!important;letter-spacing:.02em!important;color:#F0E8DA!important;caret-color:#E85D75;}",
+    '.widget-form .js-input::placeholder{color:transparent!important;opacity:0!important;}',
+    '.widget-form input.js-input:-webkit-autofill{-webkit-text-fill-color:#F0E8DA;-webkit-box-shadow:0 0 0 40px rgba(122,100,133,.9) inset;}',
+    ".widget-form .ames-flabel{position:absolute;left:0;top:22px;pointer-events:none;transform-origin:0 0;transition:transform .2s ease,opacity .2s ease,color .2s ease;color:rgba(240,232,218,.72);",
+    "  font:300 15px/1.2 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.02em;}",
+    '.widget-form .js-input:focus~.ames-flabel,.widget-form .js-input:not(:placeholder-shown)~.ames-flabel{transform:translateY(-18px) scale(.66);letter-spacing:.18em;text-transform:uppercase;color:rgba(240,232,218,.8);}',
+    // mailing-list row
+    '.widget-form .input-wrapper:has(.input-checkbox-wrapper){border-bottom:0;box-shadow:none;height:44px!important;margin-top:4px!important;}',
+    '.widget-form .input-checkbox-wrapper{display:flex!important;align-items:center;height:100%;cursor:pointer;}',
+    '.widget-form .input-checkbox-inner{display:flex!important;flex-direction:row-reverse;justify-content:flex-end;align-items:center;gap:12px;width:100%;height:100%;padding:0!important;}',
+    ".widget-form .input-checkbox-inner .label{position:static!important;font:300 13px/1.2 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif!important;letter-spacing:.04em!important;color:rgba(240,232,218,.85)!important;}",
+    '.widget-form .input-checkbox-wrapper,.widget-form .input-checkbox-inner{position:relative!important;left:0!important;margin:0!important;padding:0!important;opacity:1!important;}',
+    '.widget-form .input-checkbox-inner .label{opacity:1!important;margin:0!important;}',
+    '.widget-form .input-checkbox-inner .tick{opacity:1!important;visibility:visible!important;position:static!important;flex:none;display:flex!important;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid rgba(240,232,218,.45);box-sizing:border-box;transition:background .2s ease,border-color .2s ease;}',
+    '.widget-form .input-checkbox-inner .tick svg{width:10px!important;height:8px!important;opacity:0;transition:opacity .2s ease;fill:#F0E8DA!important;}',
+    '.widget-form input[type=checkbox]:checked~.input-checkbox-inner .tick{background:rgba(232,93,117,.55);border-color:rgba(240,232,218,.7);}',
+    '.widget-form input[type=checkbox]:checked~.input-checkbox-inner .tick svg{opacity:1;}',
+    '.widget-form input[type=checkbox]:focus-visible~.input-checkbox-inner .tick{outline:1px solid #F0E8DA;outline-offset:2px;}',
+    // send button (Readymag writes its hover colours inline, hence !important)
+    ".widget-form .button{height:46px!important;line-height:46px!important;margin-top:10px;width:100%!important;border-radius:999px!important;cursor:pointer;background:rgba(52,48,96,.28)!important;box-shadow:inset 0 0 0 1px rgba(240,232,218,.38)!important;color:#F0E8DA!important;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);transition:background .25s ease;",
+    "  font:300 11px/46px 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif!important;letter-spacing:.26em!important;text-transform:uppercase;}",
+    '.widget-form .button:hover,.widget-form .button:focus-visible{background:rgba(232,93,117,.35)!important;outline:none;}',
+    '.widget-form .button svg{fill:#F0E8DA!important;}',
     // first-visit hint on page 1
     "#ames-hint{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:10000;",
     "  display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 14px;border:0;background:none;cursor:pointer;",
@@ -307,7 +359,7 @@
       var page = document.querySelector('.mag .page.center-page');
       var c = page && page.querySelector('.page-content-container');
       if (c && c.animate) dbg.arrivals = (dbg.arrivals || 0) + 1;
-      if (c && c.animate) c.animate([{ transform: 'translateX(' + (dir * 56) + 'px)', opacity: 0 }, { transform: 'none', opacity: 1 }],
+      if (c && c.animate) c.animate([{ transform: 'translateY(' + (dir * 64) + 'px)', opacity: 0 }, { transform: 'none', opacity: 1 }],
         { duration: 520, easing: 'cubic-bezier(.2,.8,.2,1)' });
     }
     var pagesBox = document.querySelector('.mag-pages-container') || document.documentElement;
@@ -315,6 +367,7 @@
 
     dbg.ready = true;
     noFormZoom();
+    enhance(mag);
     if (isPhone()) {
       var sky = document.createElement('div'); sky.id = 'ames-sky';
       sky.style.backgroundImage = 'url("' + BASE + 'assets/' + (innerWidth < innerHeight ? 'bg-portrait.jpg' : 'bg-landscape.jpg') + '")';
@@ -351,7 +404,92 @@
     buildNav(mag);
   }
 
-  // ---- page rail + swipe hint (phones only, via .isphone CSS) ----
+  // ---- site-wide touches that don't belong to a widget ----
+  var NAMES = ['Home', 'Listen', 'About', 'Press', 'Contact'];
+  function enhance(mag) {
+    document.documentElement.lang = document.documentElement.lang || 'en';
+    Array.prototype.forEach.call(document.querySelectorAll('link[rel~="icon"]'), function (l) { if (/\/dist\/img\/favicons\//.test(l.href)) l.remove(); });
+    if (!document.getElementById('ames-h1')) {
+      var h = document.createElement('h1'); h.id = 'ames-h1'; h.textContent = 'Ames Harding';
+      h.style.cssText = 'position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;';
+      document.body.insertBefore(h, document.body.firstChild);
+    }
+    // Readymag swallows the Tab key; hand it back so keyboards can reach the controls (focus styles only show for keyboards)
+    window.addEventListener('keydown', function (e) { if (e.key === 'Tab') e.stopImmediatePropagation(); }, true);
+    document.addEventListener('focusin', function (e) {
+      var pages = Array.prototype.slice.call(document.querySelectorAll('.mag .page')), page = e.target.closest && e.target.closest('.page');
+      var i = pages.indexOf(page);
+      if (i >= 0 && mag.currentPage && i + 1 !== mag.currentPage.num && dbg.goTo) dbg.goTo(i + 1);
+    });
+    // moving photos: hold them while pointed at or pressed
+    function holdPage(e, on) {
+      var w = e.target.closest && e.target.closest('.widget-picture'), page = w && w.closest('.page');
+      if (page && page.querySelector('.animation-container')) page.classList.toggle('ames-hold', on);
+    }
+    document.addEventListener('mouseover', function (e) { holdPage(e, true); });
+    document.addEventListener('mouseout', function (e) { holdPage(e, false); });
+    document.addEventListener('touchstart', function (e) { holdPage(e, true); }, { passive: true });
+    document.addEventListener('touchend', function (e) { holdPage(e, false); }, { passive: true });
+    pageTouches(mag);
+    new MutationObserver(function () { clearTimeout(enhanceT); enhanceT = setTimeout(function () { pageTouches(mag); }, 120); })
+      .observe(document.querySelector('.mag-pages-container') || document.documentElement, { childList: true, subtree: true });
+    addEventListener('resize', function () { placeListen(); });
+  }
+  var enhanceT;
+  // applied whenever Readymag (re)renders a page's widgets
+  function pageTouches(mag) {
+    var pages = document.querySelectorAll('.mag .page');
+    // image descriptions
+    Array.prototype.forEach.call(pages, function (p, i) {
+      Array.prototype.forEach.call(p.querySelectorAll('img'), function (im) {
+        if (im.hasAttribute('alt') && im.getAttribute('alt') !== '') return;
+        if (im.closest('#ames-mb')) return;
+        im.setAttribute('alt', i === 0 ? 'Ames Harding' : 'Photo of Ames Harding');
+      });
+    });
+    // "Let's"
+    Array.prototype.forEach.call(document.querySelectorAll('.mag .widget-text-v3 span'), function (sp) {
+      if (sp.childNodes.length === 1 && sp.firstChild.nodeType === 3 && /^LETS MAKE SOMETHING/.test(sp.firstChild.nodeValue)) sp.firstChild.nodeValue = sp.firstChild.nodeValue.replace('LETS', "LET\u2019S");
+    });
+    // contact form: floating labels, autofill hints (Readymag's own fields and delivery are untouched)
+    Array.prototype.forEach.call(document.querySelectorAll('.widget-form .input-wrapper'), function (w) {
+      var f = w.querySelector('input:not([type=checkbox]), textarea');
+      if (!f || w.querySelector('.ames-flabel')) return;
+      var id = 'ames-f-' + (f.getAttribute('name') || '').toLowerCase().replace(/\W+/g, '-');
+      f.id = id;
+      var l = document.createElement('label'); l.className = 'ames-flabel'; l.htmlFor = id; l.textContent = f.getAttribute('placeholder') || '';
+      f.parentNode.insertBefore(l, f.nextSibling);
+      if (f.placeholder) { f.placeholder = ' '; }
+      if (/name/i.test(f.name)) f.setAttribute('autocomplete', 'name');
+      if (/mail/i.test(f.name)) f.setAttribute('autocomplete', 'email');
+      if (/name|message/i.test(f.name)) f.setAttribute('autocapitalize', 'sentences');
+    });
+    placeListen();
+  }
+  // landing page: a Listen button just below the page's content, and (once set) links beside it
+  function placeListen() {
+    var page = document.querySelector('.mag .page');
+    var box = page && page.querySelector('.page-content-container');
+    if (!box) return;
+    var btn = document.getElementById('ames-listen');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'ames-listen'; btn.type = 'button';
+      btn.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1v14l12-7z"/></svg>Listen';
+      btn.addEventListener('click', function () { if (dbg.goTo) dbg.goTo(2); });
+    }
+    // lives in Readymag's content layer (same coordinates and scaling as the widgets, on every device)
+    if (btn.parentNode !== box) box.appendChild(btn);
+    var low = 0;
+    Array.prototype.forEach.call(box.querySelectorAll('.rmwidget'), function (w) {
+      if (w.classList.contains('widget-background')) return;
+      var t = parseFloat(w.style.top), h = parseFloat(w.style.height);
+      if (!isNaN(t) && !isNaN(h) && w.getBoundingClientRect().height > 0) low = Math.max(low, t + h);
+    });
+    if (low) btn.style.top = Math.round(low + (isPhone() ? 22 : 30)) + 'px';
+  }
+
+  // ---- page rail + swipe hint ----
   var SEEN = 'amesSwipedUp';
   function seen() { try { return localStorage.getItem(SEEN) === '1'; } catch (e) { return false; } }
   function markSeen() { try { localStorage.setItem(SEEN, '1'); } catch (e) {} }
@@ -359,10 +497,10 @@
   function buildNav(mag) {
     var nav = document.createElement('div');
     nav.id = 'ames-nav';
-    nav.innerHTML = '<div id="ames-rail" aria-hidden="true"></div>' +
+    nav.innerHTML = '<nav id="ames-rail" aria-label="Pages"></nav>' +
       '<button id="ames-hint" type="button" aria-label="Next page">' +
       '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M7 12V2M2.5 6.5 7 2l4.5 4.5"/></svg>' +
-      '<span>Swipe up</span></button>';
+      '<span>' + (isPhone() ? 'Swipe up' : 'Scroll') + '</span></button>';
     document.body.appendChild(nav);
     var rail = nav.querySelector('#ames-rail'), hint = nav.querySelector('#ames-hint');
     hint.addEventListener('click', function () { if (dbg.goTo) dbg.goTo((mag.currentPage && mag.currentPage.num || 1) + 1); else if (!mag.isLastPage()) mag.goNextPage(); });
@@ -373,16 +511,26 @@
       try { count = mag.getPagesCount(); n = (mag.currentPage && mag.currentPage.num) || 1; } catch (e) { return; }
       if (n > 1 && !seen()) markSeen();
       if (count !== shown.count) {
-        rail.innerHTML = new Array(count + 1).join('<i></i>');
+        rail.innerHTML = '';
+        for (var ci = 0; ci < count; ci++) (function (pn) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.setAttribute('aria-label', 'Go to ' + (NAMES[pn - 1] || 'page ' + pn));
+          b.innerHTML = '<i></i><span>' + (NAMES[pn - 1] || pn) + '</span>';
+          b.addEventListener('click', function () { if (dbg.goTo) dbg.goTo(pn); });
+          rail.appendChild(b);
+        })(ci + 1);
         shown.count = count; shown.n = 0;
       }
       if (n !== shown.n) {
-        Array.prototype.forEach.call(rail.children, function (d, i) { d.classList.toggle('on', i === n - 1); });
+        Array.prototype.forEach.call(rail.children, function (d, i) { d.firstChild.classList.toggle('on', i === n - 1); if (i === n - 1) d.setAttribute('aria-current', 'page'); else d.removeAttribute('aria-current'); });
         shown.n = n;
       }
       var showHint = n === 1 && !seen() && count > 1;
       if (showHint !== shown.hint) { hint.classList.toggle('off', !showHint); shown.hint = showHint; }
       dbg.page = n;
+      var want = n === 1 || !NAMES[n - 1] ? 'Ames Harding' : 'Ames Harding \u2014 ' + NAMES[n - 1];
+      if (document.title !== want) document.title = want;
     }
     sync();
     setInterval(sync, 250);
@@ -403,11 +551,8 @@
         var m = /url\(["']?([^"')]+)/.exec(getComputedStyle(n).backgroundImage || '');
         if (m && !/^data:/.test(m[1])) urls.push(m[1]);
       });
-      // Readymag inserts the page background after the other widgets: wait for it, it's the slow one
-      var bg = el.querySelector('.widget-background .picture-background');
-      var bgReady = bg && /url\(/.test(getComputedStyle(bg).backgroundImage);
-      if (!urls.length || (!bgReady && !el.querySelector('.widget-background:not(:empty)') && Date.now() - start < 2500) || (bg && !bgReady))
-        return setTimeout(wait, 150);
+      if (!urls.length && Date.now() - start < 2500) return setTimeout(wait, 150);   // widgets not rendered yet
+      if (!urls.length) return fire();
       var left = urls.length;
       urls.forEach(function (u) {
         var im = new Image();

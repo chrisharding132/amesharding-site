@@ -10,12 +10,19 @@ const loader = (file) => `<script>(function(){var s=document.createElement('scri
 
 const img = (f) => `${base}assets/${f}`;
 const out = {
-  'head-code.html': `<!-- AMES HARDING — SHARED BACKGROUND + EMAIL LINK COLOUR.
+  'head-code.html': `<!-- AMES HARDING — SHARED BACKGROUND, ICON + EMAIL LINK COLOUR.
 Settings -> Code -> <HEAD>. One background image for every page (instead of a copy per page),
 phone-sized on portrait screens; it starts downloading before anything else. -->
+<link rel="icon" type="image/png" sizes="32x32" href="${img('icon-32.png')}">
+<link rel="icon" type="image/png" sizes="192x192" href="${img('icon-192.png')}">
+<link rel="apple-touch-icon" href="${img('icon-180.png')}">
+<link rel="preconnect" href="${new URL(base).origin}" crossorigin>
+<link rel="preload" as="fetch" href="${base}tracks.json" crossorigin>
 <link rel="preload" as="image" href="${img('bg-portrait.jpg')}" media="(max-aspect-ratio: 1/1)">
 <link rel="preload" as="image" href="${img('bg-landscape.jpg')}" media="(min-aspect-ratio: 1/1)">
 <style>
+/* the site's purple from the very first frame, instead of a white flash */
+html,body{background-color:#7a6485}
 /* Readymag paints the page colour on one of these layers depending on how it renders the page;
    all three get the same image (one download), so whichever is on top shows it */
 .mag .page,.mag .page-fixed-bg-container,.mag .widget-background{background-image:url("${img('bg-landscape.jpg')}");background-size:cover;background-position:50% 50%;background-repeat:no-repeat}

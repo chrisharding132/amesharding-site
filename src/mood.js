@@ -22,6 +22,18 @@
     // glide only for later re-layouts (rotation, address bar), never on first placement
     '#ames-mb .ames-stage.on .ames-light{transition:transform .25s ease,opacity .3s ease,filter .3s ease,left .4s ease,top .4s ease;}',
     '#ames-mb .ames-light:hover{transform:scale(1.35);}',
+    '#ames-mb .ames-light{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;outline:none;}',
+    '#ames-mb .ames-light:focus-visible{outline:1px solid rgba(240,232,218,.8);outline-offset:-8px;}',
+    // track title: hover on desktop, long-press on phones, focus on keyboards
+    "#ames-mb .ames-tip{position:absolute;z-index:5;transform:translate(-50%,-100%);max-width:80%;padding:6px 11px;border-radius:999px;pointer-events:none;opacity:0;transition:opacity .18s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;",
+    "  background:rgba(52,48,96,.62);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid rgba(240,232,218,.18);color:#F0E8DA;",
+    "  font:300 11px/1.2 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.04em;}",
+    '#ames-mb .ames-tip.on{opacity:1;}',
+    // nothing matches the filters
+    "#ames-mb .ames-empty{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;display:none;flex-direction:column;align-items:center;gap:10px;color:#F0E8DA;text-align:center;",
+    "  font:300 11px/1.3 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.2em;text-transform:uppercase;white-space:nowrap;}",
+    '#ames-mb .ames-empty.on{display:flex;}',
+    "#ames-mb .ames-empty button{font:inherit;letter-spacing:.14em;text-transform:uppercase;color:#F0E8DA;cursor:pointer;background:rgba(240,232,218,.08);border:1px solid rgba(240,232,218,.35);border-radius:999px;padding:8px 18px;}",
     // playing: a soft, grainy halo that breathes (grain = the same fractal-noise texture as the page)
     '#ames-mb .ames-light::after{content:"";position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px 0 0 -35px;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .6s ease;',
     '  background:radial-gradient(circle,rgba(236,182,146,0) 30%,rgba(236,182,146,.30) 45%,rgba(232,93,117,.22) 56%,rgba(232,93,117,0) 72%);',
@@ -87,7 +99,8 @@
         tags: f['Tags'] || [],
         x: typeof x === 'number' ? x : 0.5,
         y: typeof y === 'number' ? y : 0.5,
-        src: f['Audio URL'] || ''
+        src: f['Audio URL'] || '',
+        full: f['Full Song URL'] || ''
       };
     }).filter(function (t) { return t.title && t.src; });
   }
@@ -116,19 +129,30 @@
       settle = setTimeout(function () { S.boxes.forEach(layout); }, 350);
     });
 
-    // Wait for Airtable instead of flashing the built-in list first. The built-in list is only
-    // a fallback: Airtable failed, returned nothing, or took longer than 4s.
+    // Tracks: tracks.json (a static copy, ~0.1s) draws the map straight away; Airtable (~0.5s) then checks it and
+    // only redraws if something actually changed, so new songs still appear without a redeploy. The built-in
+    // list is only a fallback for when both fail or take longer than 4s.
     var settled = false;
     function use(list) { S.tracks = list; S.boxes.forEach(render); }
+    function sig(list) { return list.map(function (t) { return [t.src, t.x, t.y, t.title, t.type, t.tempo].join('|'); }).sort().join('~'); }
+    function arrive(list) {
+      if (!list || !list.length) return;
+      if (!S.tracks || S.fromFallback || sig(S.tracks) !== sig(list)) { S.fromFallback = false; use(list); }
+      settled = true;
+    }
+    var timer = setTimeout(function () { if (!settled) { settled = true; S.fromFallback = true; use(FALLBACK); } }, 4000);
+    if (!window.__amesNoStatic) {
+      fetch(BASE + 'tracks.json').then(function (r) { return r.json(); }).then(function (d) { if (!S.tracks || S.fromFallback) arrive(d.tracks); }).catch(function () {});
+    }
     if (window.__amesTracksPromise) {
-      var timer = setTimeout(function () { if (!settled) { settled = true; use(FALLBACK); } }, 4000);
       window.__amesTracksPromise.then(function (recs) {
+        clearTimeout(timer);
         var mapped = fromAirtable(recs);
-        if (!settled) { settled = true; clearTimeout(timer); use(mapped.length ? mapped : FALLBACK); }
-        else if (mapped.length) use(mapped);   // very slow Airtable: swap in the real list late
-      }, function () { if (!settled) { settled = true; clearTimeout(timer); use(FALLBACK); } });
-    } else {
-      use(FALLBACK);
+        if (mapped.length) arrive(mapped);
+        else if (!S.tracks) { settled = true; S.fromFallback = true; use(FALLBACK); }
+      }, function () { clearTimeout(timer); if (!S.tracks) { settled = true; S.fromFallback = true; use(FALLBACK); } });
+    } else if (window.__amesNoStatic) {
+      clearTimeout(timer); S.fromFallback = true; use(FALLBACK);
     }
   }
 
@@ -191,9 +215,11 @@
     var obstacles = L.side.map(rect).map(function (o) { return [o[0] - pad, o[1] - pad, o[2] + pad, o[3] + pad]; });
 
     var pts = lights.map(function (l) {
-      return { x: x0 + clamp01(l.t.x) * (x1 - x0), y: y0 + (1 - clamp01(l.t.y)) * (y1 - y0) };
+      // phones have the height to spare: open the vertical scale up (still a fixed scale, new songs move nothing)
+      var yv = portrait ? clamp01((l.t.y - 0.1) / 0.8) : clamp01(l.t.y);
+      return { x: x0 + clamp01(l.t.x) * (x1 - x0), y: y0 + (1 - yv) * (y1 - y0) };
     });
-    var D = Math.max(30, Math.min(40, Math.min(W, H) * 0.1));
+    var D = portrait ? Math.max(38, Math.min(46, W * 0.145)) : Math.max(30, Math.min(40, H * 0.1));
     for (var it = 0; it < 120; it++) {
       var moved = false;
       for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) {
@@ -238,20 +264,38 @@
     box._lights = S.tracks.map(function (t) {
       var el = document.createElement('div');
       el.className = 'ames-light';
+      el.setAttribute('role', 'button');
+      el.tabIndex = 0;
+      el.setAttribute('aria-label', 'Play ' + t.title);
       el.style.animation = 'ames-float-' + 'abc'.charAt(Math.floor(Math.random() * 3)) + ' ' + rnd(7, 12) + 's ease-in-out -' + rnd(0, 12) + 's infinite, ' +
         'ames-twinkle ' + rnd(2.5, 6) + 's ease-in-out -' + rnd(0, 5) + 's infinite';
       // start fetching the track as soon as a finger lands or the cursor settles on the light
       var prime = function () { window.postMessage({ amesPlayer: true, action: 'prime', src: t.src }, '*'); };
       var hoverTimer;
+      var press, pressed = false, sx = 0, sy = 0;
       el.addEventListener('pointerdown', prime);
-      el.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') hoverTimer = setTimeout(prime, 120); });
-      el.addEventListener('pointerleave', function () { clearTimeout(hoverTimer); });
-      el.addEventListener('click', function () {
+      el.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') { hoverTimer = setTimeout(prime, 120); showTip(box, el, t); } });
+      el.addEventListener('pointerleave', function () { clearTimeout(hoverTimer); hideTip(box); });
+      el.addEventListener('focus', function () { if (el.matches(':focus-visible')) showTip(box, el, t); });
+      el.addEventListener('blur', function () { hideTip(box); });
+      el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); el.click(); } });
+      // long-press shows the title without playing; moving the finger (a swipe) cancels it
+      el.addEventListener('touchstart', function (e) {
+        pressed = false; sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+        press = setTimeout(function () { pressed = true; showTip(box, el, t); }, 380);
+      }, { passive: true });
+      el.addEventListener('touchmove', function (e) {
+        if (Math.abs(e.touches[0].clientX - sx) > 8 || Math.abs(e.touches[0].clientY - sy) > 8) clearTimeout(press);
+      }, { passive: true });
+      el.addEventListener('touchend', function () { clearTimeout(press); if (pressed) setTimeout(function () { hideTip(box); }, 1400); }, { passive: true });
+      el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+      el.addEventListener('click', function (e) {
+        if (pressed) { pressed = false; e.preventDefault(); return; }
         var s = stage.querySelector('.ames-light.sel');
         if (s) s.classList.remove('sel');
         el.classList.add('sel');
         window.postMessage({ amesPlayer: true, action: 'play',
-          track: { title: t.title, duration: t.duration, tags: t.tags, src: t.src } }, '*');
+          track: { title: t.title, duration: t.duration, tags: t.tags, src: t.src, full: t.full } }, '*');
       });
       stage.appendChild(el);
       return { el: el, t: t };
@@ -268,25 +312,52 @@
       l.el.classList.toggle('loading', me && st === 'loading');
       l.el.classList.toggle('playing', me && st === 'playing');
       if (st === 'stopped') l.el.classList.remove('sel');
+      else if (st === 'loading' || st === 'playing') l.el.classList.toggle('sel', me);
     });
   }
 
   function applyFilters(box) {
-    var f = S.filters;
+    var f = S.filters, shown = 0;
     (box._lights || []).forEach(function (l) {
       var ok = (!f.type.length || f.type.indexOf(l.t.type) >= 0) && (!f.tempo.length || f.tempo.indexOf(l.t.tempo) >= 0);
       l.el.classList.toggle('hid', !ok);
+      l.el.tabIndex = ok ? 0 : -1;
+      if (ok) shown++;
     });
+    if (box._empty) box._empty.classList.toggle('on', !!(box._lights && box._lights.length) && !shown);
   }
+
+  function tipEl(box) {
+    if (!box._tip) { box._tip = document.createElement('div'); box._tip.className = 'ames-tip'; box._stage.appendChild(box._tip); }
+    return box._tip;
+  }
+  function showTip(box, el, t) {
+    var tip = tipEl(box);
+    tip.textContent = t.title;
+    tip.style.left = el.style.left;
+    tip.style.top = 'calc(' + el.style.top + ' - 22px)';
+    tip.classList.add('on');
+    // keep the title inside the map at the edges
+    var W = box._stage.offsetWidth, half = tip.offsetWidth / 2, x = parseFloat(el.style.left) / 100 * W;
+    tip.style.left = Math.max(half + 4, Math.min(W - half - 4, x)) + 'px';
+    var y = parseFloat(el.style.top) / 100 * box._stage.offsetHeight;
+    if (y - 22 - tip.offsetHeight < 2) tip.style.top = (y + 22 + tip.offsetHeight) + 'px';
+  }
+  function hideTip(box) { if (box._tip) box._tip.classList.remove('on'); }
 
   function mount(box) {
     if (box.__amesMounted) return;
     box.__amesMounted = true;
     box._mountedAt = Date.now();
+    box.setAttribute('role', 'group');
+    box.setAttribute('aria-label', 'Mood map of tracks, from organic to electronic and dark to light');
     box.innerHTML = '<div class="ames-stage">' +
+      '<div class="ames-empty" role="status"><span>No tracks match</span><button type="button">Clear</button></div>' +
       '<img class="ames-labels l" alt="" data-src="' + BASE + 'assets/labels-landscape.png">' +
       '<img class="ames-labels p" alt="" data-src="' + BASE + 'assets/labels-portrait.png"></div>';
     box._stage = box.firstChild;
+    box._empty = box.querySelector('.ames-empty');
+    box._empty.querySelector('button').addEventListener('click', function () { window.postMessage({ amesClearFilters: true }, '*'); });
     Array.prototype.forEach.call(box.querySelectorAll('img'), function (im) { im.addEventListener('load', function () { reveal(box); }); });
     setTimeout(function () { reveal(box); }, 1600);
     S.boxes.push(box);

@@ -16,8 +16,8 @@
     '#ames-player .ames-group[data-key=type]{grid-area:type;justify-self:start;}',
     '#ames-player .ames-group[data-key=tempo]{grid-area:tempo;justify-self:end;}',
     '#ames-player .ames-group{display:flex;border:1px solid rgba(240,232,218,.28);border-radius:999px;overflow:hidden;}',
-    '#ames-player .ames-fbtn{border:none;background:none;cursor:pointer;font-family:inherit;font-weight:300;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;',
-    '  color:rgba(240,232,218,.55);padding:4px 10px;transition:all .25s ease;}',
+    '#ames-player .ames-fbtn{border:none;background:none;cursor:pointer;font-family:inherit;font-weight:300;font-size:10px;letter-spacing:.12em;text-transform:uppercase;',
+    '  color:rgba(240,232,218,.55);padding:7px 11px;transition:all .25s ease;}',
     '#ames-player .ames-fbtn+.ames-fbtn{border-left:1px solid rgba(240,232,218,.22);}',
     '#ames-player .ames-fbtn:hover{color:#F0E8DA;}',
     '#ames-player .ames-fbtn.on{background:rgba(232,93,117,.35);color:#F0E8DA;text-shadow:0 0 10px rgba(232,93,117,.8);}',
@@ -27,15 +27,22 @@
     '#ames-player .ames-info{display:none;flex-direction:column;gap:3px;min-width:0;flex-shrink:0;max-width:45%;}',
     '#ames-player .ames-title{color:#E85D75;font-size:12px;font-weight:300;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
     '#ames-player .ames-tags{color:rgba(240,232,218,.65);font-size:8.5px;font-weight:300;letter-spacing:.14em;text-transform:uppercase;}',
+    '#ames-player .ames-full{color:#F0E8DA;font-size:8.5px;font-weight:300;letter-spacing:.14em;text-transform:uppercase;text-decoration:none;border-bottom:1px solid rgba(240,232,218,.35);margin-left:10px;display:none;white-space:nowrap;}',
+    '#ames-player .ames-full.has{display:inline;}',
     '#ames-player .ames-controls{display:flex;align-items:center;gap:12px;flex:1;min-width:0;}',
-    '#ames-player .ames-play{width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;background:radial-gradient(circle,rgba(240,232,218,.16),transparent 70%);',
-    '  color:#F0E8DA;font-size:13px;flex-shrink:0;display:none;}',
-    '#ames-player .ames-prog{flex:1;height:2px;background:rgba(240,232,218,.22);border-radius:2px;cursor:pointer;display:none;}',
+    '#ames-player .ames-play,#ames-player .ames-skip{align-items:center;justify-content:center;padding:0;border:none;border-radius:50%;cursor:pointer;color:#F0E8DA;flex-shrink:0;display:none;}',
+    '#ames-player .ames-play{width:36px;height:36px;background:radial-gradient(circle,rgba(240,232,218,.16),transparent 70%);}',
+    '#ames-player .ames-skip{width:30px;height:30px;background:none;color:rgba(240,232,218,.8);}',
+    '#ames-player .ames-play svg{width:14px;height:14px;fill:currentColor;}',
+    '#ames-player .ames-skip svg{width:13px;height:13px;fill:currentColor;}',
+    '#ames-player .ames-prog{flex:1;height:3px;padding:10px 0;background:rgba(240,232,218,.22);background-clip:content-box;border-radius:2px;cursor:pointer;display:none;}',
     '#ames-player .ames-fill{height:100%;width:0%;background:#F0E8DA;border-radius:2px;}',
-    '#ames-player .ames-close{border:none;background:none;color:rgba(240,232,218,.7);cursor:pointer;font-size:14px;flex-shrink:0;display:none;}',
+    '#ames-player .ames-close{border:none;background:none;color:rgba(240,232,218,.7);cursor:pointer;font-size:14px;width:30px;height:30px;padding:0;flex-shrink:0;display:none;}',
     '#ames-player.active .ames-idle{display:none;}',
     '#ames-player.active .ames-info{display:flex;}',
-    '#ames-player.active .ames-play,#ames-player.active .ames-prog,#ames-player.active .ames-close{display:block;}',
+    '#ames-player.active .ames-prog,#ames-player.active .ames-close{display:block;}',
+    '#ames-player.active .ames-play,#ames-player.active .ames-skip{display:flex;}',
+    '.ames-sr{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}',
     '@keyframes ames-spin{to{transform:rotate(360deg)}}',
     // now-playing bar: every page except the one showing the full player
     "#ames-mini{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));z-index:10002;transform:translate(-50%,20px);opacity:0;pointer-events:none;",
@@ -48,8 +55,10 @@
     '@keyframes ames-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.6);opacity:.55}}',
     '#ames-mini .t{flex:1;min-width:0;border:0;background:none;padding:0;text-align:left;cursor:pointer;color:#F0E8DA;font:300 12px/1.2 inherit;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
     '#ames-mini .t small{display:block;color:rgba(240,232,218,.55);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;margin-top:2px;}',
-    '#ames-mini button.b{flex:none;width:30px;height:30px;border-radius:50%;border:0;cursor:pointer;color:#F0E8DA;background:rgba(240,232,218,.1);font-size:11px;}',
-    '#ames-mini button.x{background:none;color:rgba(240,232,218,.6);font-size:13px;}',
+    '#ames-mini button.b{flex:none;display:flex;align-items:center;justify-content:center;padding:0;width:36px;height:36px;border-radius:50%;border:0;cursor:pointer;color:#F0E8DA;background:rgba(240,232,218,.1);font-size:13px;}',
+    '#ames-mini button.b svg{width:13px;height:13px;fill:currentColor;}',
+    '#ames-mini button.n{background:none;width:30px;}',
+    '#ames-mini button.x{background:none;width:30px;color:rgba(240,232,218,.6);}',
     '@media (prefers-reduced-motion:reduce){#ames-mini.playing .dot{animation:none}}',
     // desktop idle prompt: centred on the whole player, not just the middle column
     '#ames-player:not(.active) .ames-idle{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;}'
@@ -62,17 +71,18 @@
   var PHONE = [
     '  #ames-player{padding:8px 12px;grid-template-columns:1fr auto;grid-template-areas:"type tempo" "mid mid";align-content:center;row-gap:8px;column-gap:8px;min-height:0;}',
     '  #ames-player.active{position:absolute;left:0;right:0;bottom:0;height:auto;min-height:100%;align-content:end;padding:10px 12px 8px;}',
-    '  #ames-player .ames-fbtn{font-size:8px;padding:2px 6px;letter-spacing:.1em;}',
+    '  #ames-player .ames-fbtn{font-size:9px;padding:8px 5px;letter-spacing:.06em;}',
     '  #ames-player .ames-right{flex-direction:column;align-items:stretch;justify-content:flex-start;gap:5px;}',
     '  #ames-player:not(.active) .ames-right{align-items:center;padding-top:6px;}',
     '  #ames-player .ames-info{max-width:none;flex:none;gap:4px;}',
-    '  #ames-player .ames-title{font-size:12px;line-height:1.3;white-space:normal;text-overflow:clip;',
+    '  #ames-player .ames-title{font-size:13px;line-height:1.3;white-space:normal;text-overflow:clip;',
     '    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;}',
-    '  #ames-player .ames-tags{display:block;font-size:8.5px;line-height:1.3;}',
-    '  #ames-player .ames-controls{flex:none;width:100%;gap:12px;}',
-    '  #ames-player .ames-play{width:28px;height:28px;font-size:11px;}',
-    // 2px bar, but an 18px-tall tap target
-    '  #ames-player .ames-prog{flex:1 1 auto;width:auto;padding:8px 0;background-clip:content-box;}'
+    '  #ames-player .ames-tags{display:block;font-size:9.5px;line-height:1.3;}',
+    '  #ames-player .ames-full{font-size:9.5px;}',
+    '  #ames-player .ames-controls{flex:none;width:100%;gap:6px;}',
+    '  #ames-player .ames-play{width:38px;height:38px;}',
+    '  #ames-player .ames-skip,#ames-player .ames-close{width:32px;height:32px;}',
+    '  #ames-player .ames-prog{flex:1 1 auto;width:auto;margin:0 6px;}'
   ].join('\n');
   CSS += '\n@media (max-width:760px){' + PHONE + '#ames-player:not(.active) .ames-idle{position:static;transform:none;}}\n@container amesplayer (max-width:600px){' + PHONE +
     '#ames-player:not(.active) .ames-idle{position:static;transform:none;}}';
@@ -85,6 +95,13 @@
   if (window.__amesPlayer) { window.__amesPlayer.scan(); return; }
 
   var P = window.__amesPlayer = { filters: { type: [], tempo: [] }, track: null, el: null };
+  var ICON = {
+    play: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5v13l11-6.5z"/></svg>',
+    pause: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5h3.6v13H3zM9.4 1.5H13v13H9.4z"/></svg>',
+    prev: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2h2.2v12H2zM14.5 2v12L5 8z"/></svg>',
+    next: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11.8 2H14v12h-2.2zM1.5 2v12L11 8z"/></svg>'
+  };
+  var ART = [96, 192, 512].map(function (n) { var f = n === 96 ? 192 : n; return { src: BASE + 'assets/icon-' + f + '.png', sizes: n + 'x' + n, type: 'image/png' }; });
   var audio = new Audio();
   audio.preload = 'none';
 
@@ -115,6 +132,7 @@
   function state(s) {
     P.state = s;
     window.postMessage({ amesPlayerState: s, src: P.track && P.track.src }, '*');
+    media();
     if (P.el) P.el.classList.toggle('loading', s === 'loading');
     syncMini();
   }
@@ -131,16 +149,22 @@
     syncMini();
     if (!P.el) return;
     P.el.classList.toggle('active', !!P.track);
-    var b = q('.ames-play');
-    b.innerHTML = playing() ? '&#10074;&#10074;' : '&#9654;';
-    b.setAttribute('aria-label', playing() ? 'Pause' : 'Play');
+    var b = q('.ames-play'), want = playing() ? 'pause' : 'play';
+    if (b.dataset.icon !== want) { b.dataset.icon = want; b.innerHTML = ICON[want]; b.setAttribute('aria-label', playing() ? 'Pause' : 'Play'); }
     if (P.track) {
       q('.ames-title').textContent = P.track.title;
-      q('.ames-tags').textContent = (P.track.tags || []).join(' · ') + (P.track.duration ? '  ·  ' + P.track.duration : '');
+      q('.ames-tags').firstChild.nodeValue = (P.track.tags || []).join(' · ') + (P.track.duration ? '  ·  ' + P.track.duration : '');
+      var full = q('.ames-full'), link = P.track.full || '';
+      full.classList.toggle('has', !!link);
+      if (link) full.href = link; else full.removeAttribute('href');
+      var live = q('.ames-sr');
+      if (live.dataset.src !== P.track.src) { live.dataset.src = P.track.src; live.textContent = 'Now playing: ' + P.track.title; }
     }
     q('.ames-fill').style.width = audio.duration ? (audio.currentTime / audio.duration) * 100 + '%' : '0%';
     Array.prototype.forEach.call(P.el.querySelectorAll('.ames-fbtn'), function (btn) {
-      btn.classList.toggle('on', P.filters[btn.dataset.key].indexOf(btn.dataset.val) >= 0);
+      var on = P.filters[btn.dataset.key].indexOf(btn.dataset.val) >= 0;
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
   }
 
@@ -150,18 +174,24 @@
     el.innerHTML =
       '<div class="ames-grain"></div><div class="ames-filters"></div>' +
       '<div class="ames-right"><span class="ames-idle">' + (matchMedia('(hover: none)').matches ? 'Tap' : 'Click') + ' a light to listen</span>' +
-      '<div class="ames-info"><span class="ames-title"></span><span class="ames-tags"></span></div>' +
-      '<div class="ames-controls"><button class="ames-play" aria-label="Play">&#9654;</button>' +
-      '<div class="ames-prog"><div class="ames-fill"></div></div>' +
-      '<button class="ames-close" aria-label="Close player">&#10005;</button></div></div>';
+      '<div class="ames-info"><span class="ames-title"></span><span class="ames-tags"> <a class="ames-full" target="_blank" rel="noopener">Full song &#8599;</a></span></div>' +
+      '<div class="ames-controls"><button type="button" class="ames-skip ames-prev" aria-label="Previous track">' + ICON.prev + '</button>' +
+      '<button type="button" class="ames-play" aria-label="Play" data-icon="play">' + ICON.play + '</button>' +
+      '<button type="button" class="ames-skip ames-next" aria-label="Next track">' + ICON.next + '</button>' +
+      '<div class="ames-prog" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="ames-fill"></div></div>' +
+      '<button type="button" class="ames-close" aria-label="Close player">&#10005;</button></div></div>' +
+      '<span class="ames-sr" role="status" aria-live="polite"></span>';
     var fw = el.querySelector('.ames-filters');
     GROUPS.forEach(function (g) {
       var grp = document.createElement('div');
       grp.className = 'ames-group';
       grp.dataset.key = g.key;
+      grp.setAttribute('role', 'group');
+      grp.setAttribute('aria-label', g.key === 'type' ? 'Filter by type' : 'Filter by tempo');
       g.opts.forEach(function (o) {
         var b = document.createElement('button');
         b.className = 'ames-fbtn';
+        b.type = 'button';
         b.textContent = o[1];
         b.dataset.key = g.key; b.dataset.val = o[0];
         b.onclick = function () {
@@ -181,6 +211,13 @@
       audio.currentTime = ((e.clientX - r.left) / r.width) * audio.duration;
     };
     el.querySelector('.ames-close').onclick = function () { P.stop(); };
+    el.querySelector('.ames-prev').onclick = function () { P.prev(); };
+    el.querySelector('.ames-next').onclick = function () { P.next(); };
+    el.querySelector('.ames-prog').onkeydown = function (e) {
+      if (!audio.duration || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+      e.preventDefault(); e.stopPropagation();
+      audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + (e.key === 'ArrowLeft' ? -5 : 5)));
+    };
     if (el.parentElement) { el.parentElement.style.containerType = 'inline-size'; el.parentElement.style.containerName = 'amesplayer'; }
     P.el = el;
     sync();
@@ -192,12 +229,12 @@
     var el = P.el;
     if (!el || !el.isConnected) return;
     var wasActive = el.classList.contains('active'), t = q('.ames-title'), g = q('.ames-tags');
-    var oldT = t.textContent, oldG = g.textContent;
+    var oldT = t.textContent, oldG = g.firstChild.nodeValue;
     el.classList.add('active');
     t.textContent = 'Measure Measure Measure Measure Measure Measure Measure Measure Measure Measure';
-    g.textContent = 'tag \u00B7 tag \u00B7 tag  \u00B7  0:00';
+    var gNode = g.firstChild; gNode.nodeValue = 'tag \u00B7 tag \u00B7 tag  \u00B7  0:00';
     var h = el.offsetHeight;
-    el.classList.toggle('active', wasActive); t.textContent = oldT; g.textContent = oldG;
+    el.classList.toggle('active', wasActive); t.textContent = oldT; gNode.nodeValue = oldG;
     if (h && h !== P.expandedHeight) {
       P.expandedHeight = h;
       window.postMessage({ amesPlayerSize: true, height: h }, '*');
@@ -210,19 +247,45 @@
     EVENTS.forEach(function (ev) { a.addEventListener(ev, sync); });
     a.addEventListener('waiting', function () { if (a === audio && P.track) state('loading'); });
     a.addEventListener('playing', function () { if (a === audio) state('playing'); });
-    a.addEventListener('pause', function () { if (a === audio && P.track) state('paused'); });
-    a.addEventListener('ended', function () { if (a === audio) state('ended'); });
+    a.addEventListener('pause', function () { if (a === audio && P.track && !a.ended) state('paused'); });
+    a.addEventListener('ended', function () { if (a === audio) { state('ended'); P.next(true); } });
+    a.addEventListener('timeupdate', function () {
+      if (a !== audio || !a.duration) return;
+      var bar = q('.ames-prog'); if (bar) bar.setAttribute('aria-valuenow', Math.round(a.currentTime / a.duration * 100));
+      if (a.duration - a.currentTime < 8 && !a.__primedNext) { a.__primedNext = true; var n = nextTrack(); if (n) prime(n.src); }
+      position();
+    });
   }
   wire(audio);
 
-  function playTrack(track) {
+  // ---- queue: when a clip ends, drift to the nearest unplayed light (respecting the filters) ----
+  var history = [], played = {};
+  function allTracks() { return (window.__amesMood && window.__amesMood.tracks) || []; }
+  function pool() {
+    var f = P.filters;
+    return allTracks().filter(function (t) { return (!f.type.length || f.type.indexOf(t.type) >= 0) && (!f.tempo.length || f.tempo.indexOf(t.tempo) >= 0); });
+  }
+  function byTrack(src) { return allTracks().filter(function (t) { return t.src === src; })[0]; }
+  function nextTrack() {
+    var list = pool(), cur = P.track && byTrack(P.track.src);
+    if (!list.length) list = allTracks();
+    var fresh = list.filter(function (t) { return !played[t.src] && !(P.track && t.src === P.track.src); });
+    if (!fresh.length) { played = {}; fresh = list.filter(function (t) { return !(P.track && t.src === P.track.src); }); }
+    if (!fresh.length) return null;
+    if (!cur) return fresh[0];
+    return fresh.slice().sort(function (a, b) { return Math.hypot(a.x - cur.x, a.y - cur.y) - Math.hypot(b.x - cur.x, b.y - cur.y); })[0];
+  }
+
+  // keepElement: not from a tap (clip ended, lock screen): iOS only lets the element that already played keep playing
+  function playTrack(track, keepElement) {
     var url = resolve(track.src);
     P.track = track;
+    played[track.src] = true;
     if (!audio.paused) audio.pause();
-    if (primed && primed.dataset.url === url) {
+    if (!keepElement && primed && primed.dataset.url === url) {
       audio = primed; primed = null; wire(audio);       // already buffering: use it
     } else if (audio.dataset.url !== url) {
-      audio.dataset.url = url; audio.src = url;
+      audio.dataset.url = url; audio.src = url; audio.__primedNext = false;
     } else {
       audio.currentTime = 0;
     }
@@ -232,13 +295,55 @@
     sync();
   }
   P.toggle = function () { if (playing()) audio.pause(); else if (P.track) audio.play().catch(sync); };
-  P.stop = function () { audio.pause(); P.track = null; state('stopped'); sync(); };
+  P.stop = function () { audio.pause(); P.track = null; history = []; played = {}; state('stopped'); sync(); };
+  P.next = function (auto) {
+    var n = nextTrack();
+    if (!n) return;
+    if (P.track) history.push(P.track);
+    playTrack(n, auto === true || !userGesture());
+  };
+  P.prev = function () {
+    if (audio.currentTime > 3 || !history.length) { audio.currentTime = 0; return; }
+    playTrack(history.pop(), !userGesture());
+  };
+  function userGesture() { return !!(navigator.userActivation ? navigator.userActivation.isActive : true); }
+
+  // ---- lock screen / headphones: title, artwork, controls ----
+  function media() {
+    if (!('mediaSession' in navigator)) return;
+    var m = navigator.mediaSession;
+    if (!P.track) { m.metadata = null; m.playbackState = 'none'; return; }
+    if (!m.metadata || m.metadata.title !== P.track.title) {
+      m.metadata = new MediaMetadata({ title: P.track.title, artist: 'Ames Harding', album: 'Ames Harding', artwork: ART });
+    }
+    m.playbackState = playing() || P.state === 'loading' ? 'playing' : 'paused';
+  }
+  function position() {
+    if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState || !audio.duration || !isFinite(audio.duration)) return;
+    try { navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate || 1, position: Math.min(audio.currentTime, audio.duration) }); } catch (e) {}
+  }
+  if ('mediaSession' in navigator) {
+    var act = {
+      play: function () { if (P.track) audio.play().catch(sync); },
+      pause: function () { audio.pause(); },
+      stop: function () { P.stop(); },
+      previoustrack: function () { if (history.length) playTrack(history.pop(), true); else audio.currentTime = 0; },
+      nexttrack: function () { P.next(true); },
+      seekto: function (d) { if (audio.duration && d.seekTime != null) audio.currentTime = Math.min(d.seekTime, audio.duration); }
+    };
+    Object.keys(act).forEach(function (k) { try { navigator.mediaSession.setActionHandler(k, act[k]); } catch (e) {} });
+  }
 
   window.addEventListener('message', function (e) {
     var d = e.data;
+    if (d && d.amesClearFilters) {
+      P.filters.type = []; P.filters.tempo = [];
+      window.postMessage({ amesFilters: true, type: [], tempo: [] }, '*');
+      sync();
+    }
     if (!d || !d.amesPlayer) return;
     if (d.action === 'prime' && d.src) prime(d.src);
-    if (d.action === 'play' && d.track) playTrack(d.track);
+    if (d.action === 'play' && d.track) { if (P.track) history.push(P.track); playTrack(d.track); }
   });
 
   // Music keeps playing across pages. Away from the full player, a now-playing bar shows the track,
@@ -263,10 +368,12 @@
     mini.setAttribute('role', 'region');
     mini.setAttribute('aria-label', 'Now playing');
     mini.innerHTML = '<span class="dot"></span><button class="t" type="button"></button>' +
-      '<button class="b" type="button" aria-label="Pause">&#10074;&#10074;</button>' +
+      '<button class="b p" type="button" aria-label="Pause" data-icon="pause">' + ICON.pause + '</button>' +
+      '<button class="b n" type="button" aria-label="Next track">' + ICON.next + '</button>' +
       '<button class="b x" type="button" aria-label="Stop">&#10005;</button>';
     mini.querySelector('.t').onclick = goToPlayer;
-    mini.querySelector('.b').onclick = function () { P.toggle(); };
+    mini.querySelector('.p').onclick = function () { P.toggle(); };
+    mini.querySelector('.n').onclick = function () { P.next(); };
     mini.querySelector('.x').onclick = function () { P.stop(); };
     document.body.appendChild(mini);
   }
@@ -285,11 +392,40 @@
       t.dataset.title = P.track.title;
       t.innerHTML = '';
       t.appendChild(document.createTextNode(P.track.title));
-      var sm = document.createElement('small'); sm.textContent = 'Now playing \u00B7 tap for the map'; t.appendChild(sm);
+      var sm = document.createElement('small'); sm.textContent = 'Now playing \u00B7 ' + (matchMedia('(hover: none)').matches ? 'tap' : 'click') + ' for the map'; t.appendChild(sm);
     }
-    var b = mini.querySelector('.b:not(.x)');
-    b.innerHTML = playing() ? '&#10074;&#10074;' : '&#9654;';
-    b.setAttribute('aria-label', playing() ? 'Pause' : 'Play');
+    var b = mini.querySelector('.p'), want = playing() ? 'pause' : 'play';
+    if (b.dataset.icon !== want) { b.dataset.icon = want; b.innerHTML = ICON[want]; b.setAttribute('aria-label', playing() ? 'Pause' : 'Play'); }
+    fitAboveBar(show);
+  }
+  // The bar must not cover page content: if the current page's content reaches under it, ease that page's
+  // content up-and-smaller just enough to clear the bar; restored when the bar goes away or the page changes.
+  var fitted = null;
+  // desktop Readymag scales with CSS zoom, which measured positions don't include
+  function zoomOf(el) { var c = el.closest('.page-content-container'), z = c && parseFloat(getComputedStyle(c).zoom); return z && z > 0 ? z : 1; }
+  function fitAboveBar(show) {
+    var mag = window.RM && RM.viewerRouter && RM.viewerRouter.mag;
+    var page = show && mag && mag.currentPage ? document.querySelectorAll('.mag .page')[mag.currentPage.num - 1] : null;
+    var bounds = page && page.querySelector('.content-bounds');
+    if (fitted && fitted !== bounds) { fitted.style.transform = ''; fitted = null; }
+    if (!bounds) return;
+    var cur = fitted === bounds ? (parseFloat(bounds.dataset.fit) || 1) : 1, pt = page.getBoundingClientRect().top, low = 0;
+    Array.prototype.forEach.call(page.querySelectorAll('.rmwidget'), function (w) {
+      if (w.classList.contains('widget-background') || w.closest('.page-fixed-bg-container')) return;
+      // moving photo strips run off the screen on purpose: they don't count as content to protect
+      var mover = w.closest('.animation-container');
+      if (mover && getComputedStyle(mover).animationName !== 'none') return;
+      var r = w.getBoundingClientRect();
+      if (r.height > 0 && r.right > 0 && r.left < innerWidth) low = Math.max(low, (r.bottom - pt) * zoomOf(w) / cur);
+    });
+    var barTop = innerHeight - mini.offsetHeight - 14 - pt;   // where the bar rests (it may still be sliding in)
+    var s = low > barTop - 6 ? Math.max(0.8, (barTop - 6) / low) : 1;
+    if (Math.abs(s - cur) < 0.005 && fitted === bounds) return;
+    bounds.style.transformOrigin = '50% 0';
+    bounds.style.transition = 'transform .35s ease';
+    bounds.style.transform = s < 1 ? 'scale(' + s.toFixed(3) + ')' : '';
+    bounds.dataset.fit = s;
+    fitted = s < 1 ? bounds : null;
   }
   P.syncMini = syncMini;
   // step page by page to the page holding the full player (Readymag's own transitions)

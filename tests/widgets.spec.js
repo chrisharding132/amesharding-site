@@ -214,7 +214,7 @@ test('tapping a light shows loading then playing, and the now-playing bar appear
   await page.evaluate(() => { document.getElementById('w-pl').style.left = '-2000px'; });   // full player off-screen
   await expect(page.locator('#ames-mini')).toHaveClass(/\bon\b/, { timeout: 2000 });
   await expect(page.locator('#ames-mini .t')).toContainText('Two');
-  await page.locator('#ames-mini .b:not(.x)').click();                            // pause
+  await page.locator('#ames-mini .p').click();                            // pause
   await expect(page.locator('#ames-mini')).not.toHaveClass(/playing/);
   await page.locator('#ames-mini .x').click();                                    // stop
   await expect(page.locator('#ames-mini')).not.toHaveClass(/\bon\b/);
@@ -239,4 +239,79 @@ test('lights float visibly (a few px is not enough) and the playing light gets t
   expect(halo.anim).toBe('ames-breathe');
   expect(halo.mask, 'grainy mask on the halo').toContain('url');
   expect(halo.border, 'no ring/spinner border').toBe('0px');
+});
+
+test('clip end drifts to the nearest light; next and previous work; lock-screen info is set', async ({ page }) => {
+  await page.goto('/tests/harness.html?prefetch=cluster');
+  await expect(page.locator('#ames-mb .ames-light')).toHaveCount(28);
+  const lights = page.locator('#ames-mb .ames-light');
+  await lights.nth(0).dispatchEvent('click');
+  await expect(page.locator('#ames-player .ames-title')).toHaveText('T0');
+  await expect(lights.nth(0)).toHaveClass(/sel/);
+  await page.locator('#ames-player .ames-next').click({ force: true });
+  await expect(page.locator('#ames-player .ames-title')).not.toHaveText('T0');
+  const second = await page.locator('#ames-player .ames-title').textContent();
+  expect(['T1', 'T7'], 'next = nearest light').toContain(second);
+  await expect(lights.nth(0)).not.toHaveClass(/sel/);                  // selection follows the music
+  await page.evaluate(() => { const a = [...document.querySelectorAll('audio')]; });
+  await page.locator('#ames-player .ames-prev').click({ force: true });
+  await expect(page.locator('#ames-player .ames-title')).toHaveText('T0');
+  const meta = await page.evaluate(() => 'mediaSession' in navigator ? (navigator.mediaSession.metadata && navigator.mediaSession.metadata.artist) : 'n/a');
+  expect(['Ames Harding', 'n/a']).toContain(meta);
+  // the clip ending moves on by itself
+  await page.evaluate(() => window.__amesPlayer.next(true));
+  await expect(page.locator('#ames-player .ames-title')).not.toHaveText('T0');
+});
+
+test('no tracks match: message and Clear restore everything', async ({ page }) => {
+  await page.goto('/tests/harness.html?prefetch=fail');
+  await expect(page.locator('#ames-mb .ames-light')).toHaveCount(28);
+  await page.locator('.ames-fbtn', { hasText: /^Vox \(no lyrics\)$/i }).click();
+  await page.locator('.ames-fbtn', { hasText: /^Slow$/i }).click();
+  await expect(page.locator('#ames-mb .ames-empty')).toBeVisible();
+  await expect(page.locator('#ames-mb .ames-empty')).toContainText('No tracks match');
+  await page.locator('#ames-mb .ames-empty button').click();
+  await expect(page.locator('#ames-mb .ames-empty')).toBeHidden();
+  await expect(page.locator('#ames-mb .ames-light.hid')).toHaveCount(0);
+  await expect(page.locator('.ames-fbtn.on')).toHaveCount(0);
+});
+
+test('track title shows on hover; lights are labelled keyboard buttons', async ({ page, browserName }, info) => {
+  await page.goto('/tests/harness.html');
+  await expect(page.locator('#ames-mb .ames-light')).toHaveCount(3);
+  const l = page.locator('#ames-mb .ames-light').nth(1);
+  expect(await l.getAttribute('role')).toBe('button');
+  expect(await l.getAttribute('aria-label')).toContain('Two');
+  await l.focus(); await page.keyboard.press('Enter');
+  await expect(page.locator('#ames-player .ames-title')).toHaveText('Two');
+  if (info.project.name === 'desktop-chromium') {
+    await page.mouse.move(1, 1);
+    await page.locator('#ames-mb .ames-light').nth(2).dispatchEvent('pointerenter', { pointerType: 'mouse' });
+    await expect(page.locator('#ames-mb .ames-tip')).toHaveClass(/on/);
+    await expect(page.locator('#ames-mb .ames-tip')).toHaveText('Three');
+  }
+});
+
+test('phone player controls: chips and buttons sized like Spotify, nothing overflows at 320px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto('/tests/harness.html');
+  await expect(page.locator('#ames-player .ames-group')).toHaveCount(2);
+  const r = await page.evaluate(() => { const gs = [...document.querySelectorAll('#ames-player .ames-group')].map((g) => g.getBoundingClientRect()); const b = document.querySelector('#ames-player .ames-fbtn').getBoundingClientRect(); return { gap: gs[1].left - gs[0].right, h: b.height, right: gs[1].right, w: innerWidth }; });
+  expect(r.gap, 'filter groups do not collide').toBeGreaterThan(0);
+  expect(r.right).toBeLessThanOrEqual(r.w);
+  expect(r.h, 'chip height').toBeGreaterThanOrEqual(25);
+  await page.evaluate(() => window.postMessage({ amesPlayer: true, action: 'play', track: { title: 'Sister of the Lilies (Interlude) 90 BPM', duration: '0:21', tags: ['warm'], src: '/tests/silence.wav' } }, '*'));
+  await expect(page.locator('#ames-player')).toHaveClass(/active/);
+  const p = await page.locator('#ames-player').boundingBox();
+  for (const sel of ['.ames-prev', '.ames-play', '.ames-next', '.ames-prog', '.ames-close']) {
+    const b = await page.locator('#ames-player ' + sel).boundingBox();
+    expect(b.x + b.width, sel).toBeLessThanOrEqual(p.x + p.width + 0.5);
+    expect(b.height, sel + ' tap height').toBeGreaterThanOrEqual(22);
+  }
+});
+
+test('the static track file draws the map before Airtable answers, with no redraw if they match', async ({ page }) => {
+  await page.goto('/tests/harness.html?static=1&prefetch=none');
+  await expect(page.locator('#ames-mb .ames-light')).toHaveCount(28);
+  expect((await page.request.get('/src/tracks.json')).status()).toBe(200);
 });

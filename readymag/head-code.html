@@ -1,9 +1,16 @@
-<!-- AMES HARDING — SHARED BACKGROUND + EMAIL LINK COLOUR.
+<!-- AMES HARDING — SHARED BACKGROUND, ICON + EMAIL LINK COLOUR.
 Settings -> Code -> <HEAD>. One background image for every page (instead of a copy per page),
 phone-sized on portrait screens; it starts downloading before anything else. -->
+<link rel="icon" type="image/png" sizes="32x32" href="https://chrisharding132.github.io/amesharding-site/src/assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="https://chrisharding132.github.io/amesharding-site/src/assets/icon-192.png">
+<link rel="apple-touch-icon" href="https://chrisharding132.github.io/amesharding-site/src/assets/icon-180.png">
+<link rel="preconnect" href="https://chrisharding132.github.io" crossorigin>
+<link rel="preload" as="fetch" href="https://chrisharding132.github.io/amesharding-site/src/tracks.json" crossorigin>
 <link rel="preload" as="image" href="https://chrisharding132.github.io/amesharding-site/src/assets/bg-portrait.jpg" media="(max-aspect-ratio: 1/1)">
 <link rel="preload" as="image" href="https://chrisharding132.github.io/amesharding-site/src/assets/bg-landscape.jpg" media="(min-aspect-ratio: 1/1)">
 <style>
+/* the site's purple from the very first frame, instead of a white flash */
+html,body{background-color:#7a6485}
 /* Readymag paints the page colour on one of these layers depending on how it renders the page;
    all three get the same image (one download), so whichever is on top shows it */
 .mag .page,.mag .page-fixed-bg-container,.mag .widget-background{background-image:url("https://chrisharding132.github.io/amesharding-site/src/assets/bg-landscape.jpg");background-size:cover;background-position:50% 50%;background-repeat:no-repeat}

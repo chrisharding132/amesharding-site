@@ -16,6 +16,10 @@ for (const rec of recs) {
   const res = await fetch(url); if (!res.ok) { console.error('failed', m[1], res.status); continue; }
   writeFileSync(new URL(m[1], DIR), Buffer.from(await res.arrayBuffer())); console.log('copied', m[1]);
 }
+// the static track list that draws the map instantly (Airtable still checks it on every visit)
+const tracks = recs.map((r) => { const f = r.fields; return { title: f.Title, duration: f.Duration || '', type: f.Type || '', tempo: f.Tempo || '', tags: f.Tags || [], x: f['X (organic\u2192electronic)'], y: f['Y (dark\u2192light)'], src: f['Audio URL'], full: f['Full Song URL'] || '' }; })
+  .filter((t) => t.title && t.src).sort((a, b) => a.title.localeCompare(b.title));
+writeFileSync(new URL('../src/tracks.json', import.meta.url), JSON.stringify({ tracks }, null, 1));
 const files = readdirSync(DIR).filter((f) => f.endsWith('.mp3')).sort();
 writeFileSync(new URL('manifest.json', DIR), JSON.stringify({ files }, null, 1));
 console.log(files.length, 'clips hosted');
