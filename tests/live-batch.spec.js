@@ -184,6 +184,7 @@ test.describe('phone', () => {
     expect(hdB.y + hdB.height, 'heading above the fields').toBeLessThanOrEqual(nameB.y);
     expect(f.checked).toBe(true);
     expect(f.vh - f.bottom, 'clear of the bottom').toBeGreaterThan(60);
+    await page.screenshot({ path: 'audit-results/batch-form-phone.png' });
     // the same room on a phone with three times the songs
     await page.goto('https://amesharding.com/2/');
     await page.waitForSelector('#ames-mb .ames-stage.on');
@@ -202,6 +203,5 @@ test.describe('phone', () => {
     expect(many.minY).toBeGreaterThanOrEqual(many.L.y0 - 1);
     expect(many.maxY).toBeLessThanOrEqual(many.L.y1 + 1);
     await page.screenshot({ path: 'audit-results/batch-many-phone.png' });
-    await page.screenshot({ path: 'audit-results/batch-form-phone.png' });
   });
 });
