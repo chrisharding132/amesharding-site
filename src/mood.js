@@ -16,6 +16,8 @@
     '#ames-mb .ames-labels{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:.65;pointer-events:none;z-index:1;}',
     '#ames-mb::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;',
     '  background-image:url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.07\'/%3E%3C/svg%3E");}',
+    // the stage can outgrow the box on wide screens: grain would stop at a visible edge, so wide boxes leave it out
+    '@media (min-aspect-ratio:1/1){#ames-mb::after{display:none;}}',
     '#ames-mb .ames-light{position:absolute;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;z-index:2;',
     '  background:radial-gradient(circle,rgba(236,182,146,.95) 0%,rgba(236,182,146,.75) 6%,rgba(236,182,146,.32) 14%,rgba(236,182,146,.1) 32%,rgba(236,182,146,0) 58%);',
     '  transition:transform .25s ease,opacity .3s ease,filter .3s ease;}',
@@ -30,7 +32,7 @@
     "  font:300 11px/1.2 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.04em;}",
     '#ames-mb .ames-tip.on{opacity:1;}',
     // nothing matches the filters
-    "#ames-mb .ames-empty{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;display:none;flex-direction:column;align-items:center;gap:10px;color:#F0E8DA;text-align:center;",
+    "#ames-mb .ames-empty{position:absolute;left:50%;top:68%;transform:translate(-50%,-50%);z-index:6;display:none;flex-direction:column;align-items:center;gap:10px;color:#F0E8DA;text-align:center;",
     "  font:300 11px/1.3 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.2em;text-transform:uppercase;white-space:nowrap;}",
     '#ames-mb .ames-empty.on{display:flex;}',
     "#ames-mb .ames-empty button{font:inherit;letter-spacing:.14em;text-transform:uppercase;color:#F0E8DA;cursor:pointer;background:rgba(240,232,218,.08);border:1px solid rgba(240,232,218,.35);border-radius:999px;padding:8px 18px;}",
@@ -43,16 +45,19 @@
     '@keyframes ames-breathe{0%,100%{transform:scale(.82);opacity:.55}50%{transform:scale(1.12);opacity:.95}}',
     '@media (prefers-reduced-motion:reduce){#ames-mb .ames-light::after{animation:none!important}}',
     '#ames-mb .ames-light.sel{background:radial-gradient(circle,rgba(232,93,117,.95) 0%,rgba(232,93,117,.75) 6%,rgba(232,93,117,.32) 14%,rgba(232,93,117,.1) 32%,rgba(232,93,117,0) 58%);}',
-    // floating: slow loose loops of up to ~12px (translate, so it never fights the hover scale)
-    '@keyframes ames-float-a{0%,100%{translate:0 0}25%{translate:9px -10px}50%{translate:-4px -14px}75%{translate:-11px -3px}}',
-    '@keyframes ames-float-b{0%,100%{translate:0 0}30%{translate:-10px 7px}55%{translate:5px 12px}80%{translate:11px -4px}}',
-    '@keyframes ames-float-c{0%,100%{translate:0 0}20%{translate:7px 9px}50%{translate:13px -5px}75%{translate:-7px -11px}}',
+    // floating: slow loose loops of up to ~12px (translate, so it never fights the hover scale); half that on desktop
+    'html:not(.isphone) #ames-mb{--ames-drift:.5;}',
+    '@keyframes ames-float-a{0%,100%{translate:0 0}25%{translate:calc(9px*var(--ames-drift,1)) calc(-10px*var(--ames-drift,1))}50%{translate:calc(-4px*var(--ames-drift,1)) calc(-14px*var(--ames-drift,1))}75%{translate:calc(-11px*var(--ames-drift,1)) calc(-3px*var(--ames-drift,1))}}',
+    '@keyframes ames-float-b{0%,100%{translate:0 0}30%{translate:calc(-10px*var(--ames-drift,1)) calc(7px*var(--ames-drift,1))}55%{translate:calc(5px*var(--ames-drift,1)) calc(12px*var(--ames-drift,1))}80%{translate:calc(11px*var(--ames-drift,1)) calc(-4px*var(--ames-drift,1))}}',
+    '@keyframes ames-float-c{0%,100%{translate:0 0}20%{translate:calc(7px*var(--ames-drift,1)) calc(9px*var(--ames-drift,1))}50%{translate:calc(13px*var(--ames-drift,1)) calc(-5px*var(--ames-drift,1))}75%{translate:calc(-7px*var(--ames-drift,1)) calc(-11px*var(--ames-drift,1))}}',
     '@keyframes ames-twinkle{0%,100%{opacity:1}50%{opacity:.72}}',
     // Reduce Motion on: still drift, but slower and smaller (no breathing scale on the halo)
     '@keyframes ames-float-soft{0%,100%{translate:0 0}33%{translate:3px -4px}66%{translate:-4px 2px}}',
     '@media (prefers-reduced-motion:reduce){#ames-mb .ames-light{animation-name:ames-float-soft,ames-twinkle!important;animation-duration:19s,7s!important;}',
     '  #ames-mb .ames-light.playing::after{animation:none;opacity:.8;transform:none;}}',
-    '#ames-mb .ames-light.hid{animation:none!important;opacity:.1;filter:grayscale(1);pointer-events:none;}'
+    // filtered out: greyed but still there and still drifting, so the whole catalogue stays visible (no twinkle, which would override the opacity)
+    '#ames-mb .ames-light.hid{animation-name:var(--ames-float),none!important;opacity:.5;filter:grayscale(1);pointer-events:none;cursor:default;}',
+    '@media (prefers-reduced-motion:reduce){#ames-mb .ames-light.hid{animation-name:ames-float-soft,none!important;}}'
   ].join('\n');
 
   // Embedded fallback, used until (or if) Airtable answers.
@@ -134,6 +139,7 @@
     // list is only a fallback for when both fail or take longer than 4s.
     var settled = false;
     function use(list) { S.tracks = list; S.boxes.forEach(render); }
+    window.__amesRender = render;
     function sig(list) { return list.map(function (t) { return [t.src, t.x, t.y, t.title, t.type, t.tempo].join('|'); }).sort().join('~'); }
     function arrive(list) {
       if (!list || !list.length) return;
@@ -162,11 +168,11 @@
   // ---- layout ----
   // Axis-word boxes in each label image, in % of the image (measured from the PNG alpha).
   var LABELS = {
-    l: { w: 1200, h: 633,  top: [47.9, 0.3, 53.2, 5.7], bottom: [48.0, 93.8, 53.0, 99.1], side: [[0.2, 48.7, 11.2, 51.2], [85.1, 48.7, 99.9, 51.2]] },
+    l: { w: 1200, h: 780,  top: [47.8, 0.3, 52.2, 4.0], bottom: [47.9, 95.9, 52.1, 99.5], side: [[0.2, 49.1, 9.4, 50.8], [87.3, 49.1, 99.8, 50.8]] },
     p: { w: 700,  h: 1051, top: [43.6, 0.3, 55.0, 4.3], bottom: [43.9, 95.1, 54.7, 99.0], side: [[0.4, 49.1, 24.4, 51.1], [67.3, 49.2, 99.7, 51.0]] }
   };
   var R = 16;      // visible radius of a light (the 46px glow fades out well before its edge)
-  var DRIFT = 14;  // ames-float carries a light up to ~13px from its spot in any direction
+  var DRIFT = 14;  // ames-float carries a light up to ~13px from its spot in any direction (half that on desktop)
 
   // Top edge of the player's open panel, in the box's own coordinates (Infinity if it doesn't overlap).
   // Everything is measured relative to each element's own Readymag page, so it is right even while the
@@ -186,20 +192,44 @@
     return (plBottom - expanded - boxTop) / k - 6;
   }
 
+  // Wide screens: the map can use the whole height of the screen above the player, not just the widget's box.
+  // Returns how far the stage reaches past the box at the top and bottom, in the box's own coordinates.
+  function reach(box, k) {
+    var pl = document.getElementById('ames-player'), page = box.closest('.page');
+    if (!pl || !pl.isConnected || !page) return { top: 0, bottom: 0 };
+    var b = box.getBoundingClientRect(), r = pl.getBoundingClientRect(), pt = page.getBoundingClientRect().top;
+    if (!r.height) return { top: 0, bottom: 0 };
+    // under Readymag's desktop zoom these boxes can be in unzoomed units, where the screen is innerHeight / zoom tall
+    var c = box.closest('.page-content-container'), z = c && parseFloat(getComputedStyle(c).zoom) || 1;
+    var s = Math.abs(b.height - box.offsetHeight) < 2 ? z : 1;
+    return {
+      top: Math.max(0, (b.top - pt - 26 / s) / k),
+      bottom: Math.max(0, (Math.min(r.top - pageTop(pl), innerHeight / s) - 18 / s - (b.bottom - pt)) / k)
+    };
+  }
+
   // Lights sit at their true X/Y on a fixed 0-1 scale (so adding songs never moves the others).
   // Only lights that would overlap get nudged apart, by the minimum distance needed to tap them.
   function layout(box) {
     var stage = box._stage, W = box.offsetWidth, HB = box.offsetHeight;
     if (!stage || !W || !HB) return;
     var k = box.getBoundingClientRect().height / HB || 1;   // Readymag scales the whole page
-    // The open player covers at most the bottom ~15% of the map; a reading that claims much more is a
-    // mid-transition measurement (page sliding, browser bar moving): ignore it and measure again shortly.
-    var limit = playerLimit(box, k);
-    if (limit < HB * 0.7) { limit = HB; clearTimeout(box._retry); box._retry = setTimeout(function () { layout(box); }, 500); }
-    var H = Math.round(Math.min(HB, limit));
-    stage.style.height = H + 'px';
     // orientation follows the widget box, never the shortened stage (a phone must never get the wide labels)
-    var portrait = HB > W, L = portrait ? LABELS.p : LABELS.l;
+    var portrait = HB > W, L = portrait ? LABELS.p : LABELS.l, H;
+    if (portrait) {
+      // The open player covers at most the bottom ~15% of the map; a reading that claims much more is a
+      // mid-transition measurement (page sliding, browser bar moving): ignore it and measure again shortly.
+      var limit = playerLimit(box, k);
+      if (limit < HB * 0.7) { limit = HB; clearTimeout(box._retry); box._retry = setTimeout(function () { layout(box); }, 500); }
+      H = Math.round(Math.min(HB, limit));
+    } else {
+      var far = reach(box, k);
+      H = Math.round(HB + far.top + far.bottom);
+      stage.style.top = -Math.round(far.top) + 'px';
+      box.style.overflow = 'visible';
+      if (box.parentElement) box.parentElement.style.overflow = 'visible';
+    }
+    stage.style.height = H + 'px';
     var show = stage.querySelector(portrait ? '.ames-labels.p' : '.ames-labels.l');
     stage.querySelector(portrait ? '.ames-labels.l' : '.ames-labels.p').style.display = 'none';
     show.style.display = 'block';
@@ -209,18 +239,20 @@
 
     var s = Math.min(W / L.w, H / L.h), ox = (W - L.w * s) / 2, oy = (H - L.h * s) / 2;
     function rect(r) { return [ox + r[0] / 100 * L.w * s, oy + r[1] / 100 * L.h * s, ox + r[2] / 100 * L.w * s, oy + r[3] / 100 * L.h * s]; }
-    var pad = R + 6;
-    var x0 = R + DRIFT, x1 = W - R - DRIFT;
-    var y0 = Math.max(R + DRIFT, rect(L.top)[3] + pad), y1 = Math.min(H - R - DRIFT, rect(L.bottom)[1] - pad);
+    var pad = R + 6, drift = document.documentElement.classList.contains('isphone') || portrait ? DRIFT : DRIFT / 2;
+    var x0 = R + drift, x1 = W - R - drift;
+    var y0 = Math.max(R + drift, rect(L.top)[3] + pad), y1 = Math.min(H - R - drift, rect(L.bottom)[1] - pad);
     var obstacles = L.side.map(rect).map(function (o) { return [o[0] - pad, o[1] - pad, o[2] + pad, o[3] + pad]; });
 
     var pts = lights.map(function (l) {
-      // phones have the height to spare: open the vertical scale up (still a fixed scale, new songs move nothing)
-      var yv = portrait ? clamp01((l.t.y - 0.1) / 0.8) : clamp01(l.t.y);
+      // open the vertical scale up to the height available (still a fixed scale, new songs move nothing)
+      var yv = clamp01((l.t.y - 0.1) / 0.8);
       return { x: x0 + clamp01(l.t.x) * (x1 - x0), y: y0 + (1 - yv) * (y1 - y0) };
     });
     var D = portrait ? Math.max(38, Math.min(46, W * 0.145)) : Math.max(30, Math.min(40, H * 0.1));
-    for (var it = 0; it < 120; it++) {
+    // however many songs there are, the spacing tightens just enough for them all to fit inside the margins
+    D = Math.min(D, Math.sqrt((x1 - x0) * (y1 - y0) / pts.length) * 0.8);
+    for (var it = 0; it < 300; it++) {
       var moved = false;
       for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) {
         var dx = pts[j].x - pts[i].x, dy = pts[j].y - pts[i].y, d = Math.sqrt(dx * dx + dy * dy);
@@ -267,7 +299,9 @@
       el.setAttribute('role', 'button');
       el.tabIndex = 0;
       el.setAttribute('aria-label', 'Play ' + t.title);
-      el.style.animation = 'ames-float-' + 'abc'.charAt(Math.floor(Math.random() * 3)) + ' ' + rnd(7, 12) + 's ease-in-out -' + rnd(0, 12) + 's infinite, ' +
+      var fl = 'ames-float-' + 'abc'.charAt(Math.floor(Math.random() * 3));
+      el.style.setProperty('--ames-float', fl);
+      el.style.animation = fl + ' ' + rnd(7, 12) + 's ease-in-out -' + rnd(0, 12) + 's infinite, ' +
         'ames-twinkle ' + rnd(2.5, 6) + 's ease-in-out -' + rnd(0, 5) + 's infinite';
       // start fetching the track as soon as a finger lands or the cursor settles on the light
       var prime = function () { window.postMessage({ amesPlayer: true, action: 'prime', src: t.src }, '*'); };
@@ -322,6 +356,7 @@
       var ok = (!f.type.length || f.type.indexOf(l.t.type) >= 0) && (!f.tempo.length || f.tempo.indexOf(l.t.tempo) >= 0);
       l.el.classList.toggle('hid', !ok);
       l.el.tabIndex = ok ? 0 : -1;
+      if (ok) l.el.removeAttribute('aria-disabled'); else l.el.setAttribute('aria-disabled', 'true');
       if (ok) shown++;
     });
     if (box._empty) box._empty.classList.toggle('on', !!(box._lights && box._lights.length) && !shown);
@@ -353,7 +388,7 @@
     box.setAttribute('aria-label', 'Mood map of tracks, from organic to electronic and dark to light');
     box.innerHTML = '<div class="ames-stage">' +
       '<div class="ames-empty" role="status"><span>No tracks match</span><button type="button">Clear</button></div>' +
-      '<img class="ames-labels l" alt="" data-src="' + BASE + 'assets/labels-landscape.png">' +
+      '<img class="ames-labels l" alt="" data-src="' + BASE + 'assets/labels-landscape-tall.png">' +
       '<img class="ames-labels p" alt="" data-src="' + BASE + 'assets/labels-portrait.png"></div>';
     box._stage = box.firstChild;
     box._empty = box.querySelector('.ames-empty');

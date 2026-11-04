@@ -36,7 +36,7 @@
     '#ames-player .ames-play svg{width:14px;height:14px;fill:currentColor;}',
     '#ames-player .ames-skip svg{width:13px;height:13px;fill:currentColor;}',
     '#ames-player .ames-prog{flex:1;height:3px;padding:10px 0;background:rgba(240,232,218,.22);background-clip:content-box;border-radius:2px;cursor:pointer;display:none;}',
-    '#ames-player .ames-fill{height:100%;width:0%;background:#F0E8DA;border-radius:2px;}',
+    '#ames-player .ames-fill{height:100%;width:0%;background:#F0E8DA;border-radius:2px;pointer-events:none;}',
     '#ames-player .ames-close{border:none;background:none;color:rgba(240,232,218,.7);cursor:pointer;font-size:14px;width:30px;height:30px;padding:0;flex-shrink:0;display:none;}',
     '#ames-player.active .ames-idle{display:none;}',
     '#ames-player.active .ames-info{display:flex;}',
@@ -74,7 +74,7 @@
     '  #ames-player .ames-fbtn{font-size:9px;padding:8px 5px;letter-spacing:.06em;}',
     '  #ames-player .ames-right{flex-direction:column;align-items:stretch;justify-content:flex-start;gap:5px;}',
     '  #ames-player:not(.active) .ames-right{align-items:center;padding-top:6px;}',
-    '  #ames-player .ames-info{max-width:none;flex:none;gap:4px;}',
+    '  #ames-player .ames-info{max-width:none;flex:none;gap:4px;text-align:center;}',
     '  #ames-player .ames-title{font-size:13px;line-height:1.3;white-space:normal;text-overflow:clip;',
     '    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;}',
     '  #ames-player .ames-tags{display:block;font-size:9.5px;line-height:1.3;}',
@@ -207,8 +207,12 @@
     el.querySelector('.ames-play').onclick = function () { P.toggle(); };
     el.querySelector('.ames-prog').onclick = function (e) {
       if (!audio.duration) return;
-      var r = this.getBoundingClientRect();
-      audio.currentTime = ((e.clientX - r.left) / r.width) * audio.duration;
+      // Under Readymag's desktop zoom a measured box can be in unzoomed units while the pointer is in screen pixels:
+      // a time past the end would skip to the next clip. Convert first, and never land on the very end.
+      var r = this.getBoundingClientRect(), s = Math.abs(r.width - this.offsetWidth) < 2 ? zoomOf(this) : 1;
+      var f = (e.clientX - r.left * s) / (r.width * s || 1);
+      audio.currentTime = Math.max(0, Math.min(0.995, f)) * audio.duration;
+      sync();
     };
     el.querySelector('.ames-close').onclick = function () { P.stop(); };
     el.querySelector('.ames-prev').onclick = function () { P.prev(); };

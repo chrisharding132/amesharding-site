@@ -35,9 +35,10 @@
     'html:not(.isphone) #ames-rail button:hover span,html:not(.isphone) #ames-rail button:focus-visible span{opacity:1;transform:translate(0,-50%);}',
     'html:not(.isphone) #ames-rail button:focus-visible{outline:1px solid rgba(240,232,218,.7);outline-offset:-2px;border-radius:3px;}',
     // landing page: Listen
-    "#ames-listen{position:absolute;left:50%;transform:translateX(-50%);z-index:50;display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:999px;cursor:pointer;color:#F0E8DA;white-space:nowrap;",
-    "  background:rgba(52,48,96,.28);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid rgba(240,232,218,.35);transition:background .25s ease,border-color .25s ease;",
+    "#ames-listen{position:absolute;left:50%;transform:translateX(-50%);z-index:50;display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:999px;cursor:pointer;color:#F0E8DA;white-space:nowrap;opacity:0;visibility:hidden;",
+    "  background:rgba(52,48,96,.28);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid rgba(240,232,218,.35);transition:background .25s ease,border-color .25s ease,opacity .4s ease;",
     "  font:300 9.5px/1 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.24em;text-transform:uppercase;}",
+    '#ames-listen.on{opacity:1;visibility:visible;}',
     '#ames-listen:hover,#ames-listen:focus-visible{background:rgba(232,93,117,.35);border-color:rgba(240,232,218,.6);outline:none;}',
     '#ames-listen svg{width:9px;height:9px;fill:currentColor;}',
     // moving photos: held while pointed at or pressed
@@ -47,7 +48,7 @@
     // ---- contact form: underlined fields with floating labels on the sky, frosted send button ----
     '.widget-form{overflow:visible!important;height:auto!important;}',
     ".widget-form .input-wrapper{position:relative!important;height:50px!important;margin-bottom:6px!important;background:none!important;border-radius:0!important;box-shadow:none!important;border-bottom:1px solid rgba(240,232,218,.32);transition:border-color .25s ease,box-shadow .25s ease;}",
-    '.widget-form .input-wrapper.is-multiline{height:112px!important;}',
+    '.widget-form .input-wrapper.is-multiline{height:84px!important;}',
     '.widget-form .input-wrapper:focus-within{border-bottom-color:#F0E8DA;box-shadow:0 1px 0 0 rgba(240,232,218,.55);}',
     '.widget-form .overlay{display:none!important;}',
     ".widget-form input.js-input:not([type=checkbox]),.widget-form textarea.js-input{position:absolute!important;left:0!important;right:0!important;top:20px!important;bottom:4px!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;outline:0!important;background:none!important;resize:none;box-sizing:border-box;",
@@ -254,29 +255,56 @@
       if (document.documentElement.style.getPropertyValue('--ames-doc-h') !== need) document.documentElement.style.setProperty('--ames-doc-h', need);
     }
     function maxScroll() { return Math.max(0, document.documentElement.scrollHeight - innerHeight); }
-    function glideTo(y, speed) {
+    function slotOf(i) { return Math.min(topOf(i), maxScroll()); }
+    // Glides to a page by index, re-reading where that page is on every frame: the first time a page is used
+    // Chrome on iPhone can still re-size it (684 to 714), which would otherwise leave a sliver of the page before.
+    function glideTo(i, speed) {
       stopGlide();
       still(false);
-      var from = scrollY, dist = y - from;
-      if (Math.abs(dist) < 1) { scrollTo(0, y); still(true); return; }
+      var from = scrollY, y = slotOf(i);
+      if (Math.abs(y - from) < 1) { scrollTo(0, y); still(true); return; }
       // faster flicks finish faster; short corrections are quick
-      var dur = reduce ? 120 : Math.max(200, Math.min(480, Math.abs(dist) / Math.max(0.9, Math.abs(speed || 0)) * 0.9 + 140));
+      var dur = reduce ? 120 : Math.max(200, Math.min(480, Math.abs(y - from) / Math.max(0.9, Math.abs(speed || 0)) * 0.9 + 140));
       var t0 = performance.now();
       (function frame(now) {
         var k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);   // ease-out cubic
-        scrollTo(0, from + dist * e);
+        y = slotOf(i);
+        scrollTo(0, from + (y - from) * e);
         glide = k < 1 ? requestAnimationFrame(frame) : null;
-        if (!glide) still(true);
+        if (!glide) { still(true); holdSlot(i); }
       })(t0);
+    }
+    // ...and for a moment after landing, while Readymag finishes activating the page
+    var holdT;
+    function holdSlot(i) {
+      var n = 0;
+      clearInterval(holdT);
+      holdT = setInterval(function () {
+        if (++n > 12 || glide || !document.documentElement.classList.contains('ames-still')) return clearInterval(holdT);
+        var y = slotOf(i);
+        if (Math.abs(scrollY - y) > 1) { scrollTo(0, y); markOff(); }
+      }, 50);
     }
     function goTo(n) {   // 1-based page number, used by the swipe hint and the now-playing bar
       n = Math.max(1, Math.min(count(), n));
-      if (vertical()) { fitHeight(); return glideTo(Math.min(topOf(n - 1), maxScroll()), 2); }
+      if (vertical()) { fitHeight(); return glideTo(n - 1, 2); }
       var steps = n - 1 - curIdx();
       (function step() {
         if (!steps) return;
-        if (steps > 0) { mag.goNextPage(); steps--; } else { mag.goPrevPage(); steps++; }
+        if (steps > 0) { turn(1); steps--; } else { turn(-1); steps++; }
         setTimeout(step, 260);
+      })();
+    }
+    // Readymag ignores a page change asked for during its 520ms transition: keep asking until it is taken
+    var turnT;
+    function turn(dir) {
+      clearTimeout(turnT);
+      var tries = 0;
+      (function ask() {
+        var n = curIdx();
+        if (dir > 0 ? mag.isLastPage() : mag.isFirstPage()) return;
+        if (dir > 0) mag.goNextPage(); else mag.goPrevPage();
+        if (curIdx() === n && ++tries < 14) turnT = setTimeout(ask, 50);
       })();
     }
     dbg.goTo = goTo;
@@ -316,7 +344,7 @@
       dbg.last = { dy: Math.round(dy), v: +v.toFixed(2), axis: axis, phone: isPhone(), vertical: !!vertical() };
       if (!isPhone() || axis !== 'y') {
         // a tap (possibly catching a gliding page): settle on the nearest page
-        if (vertical()) { var near = Math.min(topOf(nearestIdx(scrollY)), maxScroll()); if (Math.abs(scrollY - near) > 1) glideTo(near, 1); else still(true); }
+        if (vertical()) { var near = nearestIdx(scrollY); if (Math.abs(scrollY - slotOf(near)) > 1) glideTo(near, 1); else still(true); }
         return;
       }
       if (!vertical()) {                              // phone in landscape (horizontal viewer): plain page turn
@@ -328,25 +356,32 @@
       var to = commit ? from + (dy < 0 ? 1 : -1) : from;
       to = Math.max(0, Math.min(count() - 1, to));
       dbg.last.go = to > from ? 'next' : to < from ? 'prev' : 'stay';
-      glideTo(Math.min(topOf(to), maxScroll()), v);
+      glideTo(to, v);
     }, OPTS);
 
     // ---- desktop: one page per wheel / trackpad gesture (the trackpad's coasting tail is ignored) ----
-    var acc = 0, locked = false, quiet;
+    var acc = 0, locked = false, quiet, lastAbs = 0, lastDir = 0, turnedAt = 0;
     window.addEventListener('wheel', function (e) {
       if (isPhone() || e.ctrlKey) return;                         // ctrl+wheel = pinch-zoom on trackpads
-      if (e.target.closest && e.target.closest('textarea, select, [data-ames-scroll]')) return;
+      var inner = e.target.closest && e.target.closest('textarea, select, [data-ames-scroll]');
+      if (inner && inner.scrollHeight > inner.clientHeight + 1) return;   // only if it really has something to scroll
       var d = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
       if (e.deltaMode === 1) d *= 16;
+      if (!d) return;
       e.preventDefault();
+      var abs = Math.abs(d), dir = d > 0 ? 1 : -1, now = performance.now();
       clearTimeout(quiet);
-      quiet = setTimeout(function () { locked = false; acc = 0; }, 180);   // gesture over after 180ms of silence
+      quiet = setTimeout(function () { locked = false; acc = 0; lastAbs = 0; }, 180);   // gesture over after 180ms of silence
+      // a trackpad's coast only ever fades, and can run for a second or more: a push that gets stronger,
+      // or goes the other way, is a new gesture even though the coast never fell silent
+      if (locked && now - turnedAt > 250 && (dir !== lastDir || (abs > lastAbs * 1.5 && abs >= 6))) { locked = false; acc = 0; }
+      lastAbs = abs; lastDir = dir;
       if (locked) return;
       acc += d;
-      if (Math.abs(acc) < 40) return;
-      locked = true;
+      if (Math.abs(acc) < 14) return;
+      locked = true; turnedAt = now;
       dbg.lastWheel = acc > 0 ? 'next' : 'prev';
-      if (acc > 0) { if (!mag.isLastPage()) mag.goNextPage(); } else if (!mag.isFirstPage()) mag.goPrevPage();
+      turn(acc > 0 ? 1 : -1);
     }, { passive: false, capture: true });
 
     // ---- desktop: page content glides in on every page change (wheel, keys, arrows); the sky stays still ----
@@ -423,11 +458,20 @@
     });
     // moving photos: hold them while pointed at or pressed
     function holdPage(e, on) {
-      var w = e.target.closest && e.target.closest('.widget-picture'), page = w && w.closest('.page');
-      if (page && page.querySelector('.animation-container')) page.classList.toggle('ames-hold', on);
+      var w = e.target.closest && e.target.closest('.animation-container'), page = w && w.closest('.page');
+      if (page) page.classList.toggle('ames-hold', on);
     }
-    document.addEventListener('mouseover', function (e) { holdPage(e, true); });
-    document.addEventListener('mouseout', function (e) { holdPage(e, false); });
+    // the mouse: anywhere within the two columns' width (including the gaps between photos), and nowhere else
+    if (desktop) {
+      document.addEventListener('mousemove', function (e) {
+        var page = document.querySelector('.mag .page.center-page'), cols = page ? page.querySelectorAll('.animation-container') : [], over = false;
+        Array.prototype.forEach.call(cols, function (c) { var r = c.getBoundingClientRect(); if (e.clientX >= r.left && e.clientX <= r.right) over = true; });
+        if (page && cols.length) page.classList.toggle('ames-hold', over);
+      }, { passive: true });
+      document.documentElement.addEventListener('mouseleave', function () {
+        Array.prototype.forEach.call(document.querySelectorAll('.page.ames-hold'), function (p) { p.classList.remove('ames-hold'); });
+      });
+    }
     document.addEventListener('touchstart', function (e) { holdPage(e, true); }, { passive: true });
     document.addEventListener('touchend', function (e) { holdPage(e, false); }, { passive: true });
     pageTouches(mag);
@@ -464,7 +508,38 @@
       if (/mail/i.test(f.name)) f.setAttribute('autocomplete', 'email');
       if (/name|message/i.test(f.name)) f.setAttribute('autocapitalize', 'sentences');
     });
+    // mailing list starts ticked (once per field, so it can be unticked)
+    Array.prototype.forEach.call(document.querySelectorAll('.widget-form input[type=checkbox]'), function (c) {
+      if (c.__amesTicked || !/mailing/i.test(c.name)) return;
+      c.__amesTicked = true;
+      if (!c.checked) { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+    placeForm();
     placeListen();
+  }
+  // contact page: heading + form sit a little above the middle of the visible screen, whatever its height
+  function placeForm() {
+    var form = document.querySelector('.mag .widget-form'), fw = form && form.closest('.rmwidget');
+    var page = fw && fw.closest('.page'), box = page && page.querySelector('.page-content-container');
+    if (!box || !fw.offsetWidth) return;
+    if (box.getAnimations && box.getAnimations().length) { clearTimeout(placeForm.t); placeForm.t = setTimeout(placeForm, 600); return; }
+    var fr = fw.getBoundingClientRect(), k = fr.width / fw.offsetWidth || 1;   // Readymag scales the whole page
+    // under the desktop zoom these boxes can be in unzoomed units, where the screen is innerHeight / zoom tall
+    var z = parseFloat(getComputedStyle(box).zoom) || 1, s = Math.abs(fr.width - fw.offsetWidth) < 2 ? z : 1;
+    var ws = Array.prototype.filter.call(page.querySelectorAll('.rmwidget.widget-text-v3'), function (w) { return w.getBoundingClientRect().height > 0; });
+    ws.push(fw);
+    var was = (dbg.formShift || 0) * k, pt = page.getBoundingClientRect().top, top = Infinity, low = 0;
+    ws.forEach(function (w) {
+      var r = w.getBoundingClientRect();
+      top = Math.min(top, r.top - pt - was);
+      // the form's own box has no height (its fields are positioned): it ends at the send button
+      var end = w === fw ? (form.querySelector('.button') || w).getBoundingClientRect().bottom : r.bottom;
+      low = Math.max(low, end - pt - was);
+    });
+    var vh = innerHeight / s, want = Math.max(24 / s, (vh - (low - top)) * 0.42);
+    var shift = Math.round((want - top) / k);
+    ws.forEach(function (w) { w.style.translate = '0 ' + shift + 'px'; });
+    dbg.formShift = shift;
   }
   // landing page: a Listen button just below the page's content, and (once set) links beside it
   function placeListen() {
@@ -486,7 +561,14 @@
       var t = parseFloat(w.style.top), h = parseFloat(w.style.height);
       if (!isNaN(t) && !isNaN(h) && w.getBoundingClientRect().height > 0) low = Math.max(low, t + h);
     });
-    if (low) btn.style.top = Math.round(low + (isPhone() ? 22 : 30)) + 'px';
+    if (low) {
+      var top = Math.round(low + (isPhone() ? 22 : 30)) + 'px';
+      // appears only once its place has stopped changing, so it never shows at the top and then drops
+      if (btn.style.top !== top) {
+        btn.style.top = top;
+        if (!btn.classList.contains('on')) { clearTimeout(btn._t); btn._t = setTimeout(function () { btn.classList.add('on'); }, 350); }
+      }
+    }
   }
 
   // ---- page rail + swipe hint ----
