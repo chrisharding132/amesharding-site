@@ -26,16 +26,16 @@ async function drag(page, dy, ms, release = true) {
 test.describe('phone', () => {
   const { defaultBrowserType, ...dev } = PHONE;
   test.use(dev);
-  test('page follows the finger, springs back, flicks and drags turn the page', async ({ page }) => {
+  test('one page at a time: holding stays put, flicks and drags turn the page', async ({ page }) => {
     test.setTimeout(60000);
     await local(page);
     await page.goto('https://amesharding.com/');
     await page.waitForFunction(() => window.__amesPaging && window.__amesPaging.ready && window.__amesPaging.goTo, null, { timeout: 20000 });
     await page.waitForTimeout(1200);
     const H = await page.evaluate(() => document.querySelector('.mag .page').offsetHeight);
-    // mid-drag: the page has moved with the finger
+    // mid-drag: the page stays where it is (only its content leans a little); no other page comes into view
     const midScroll = await drag(page, -200, 240, false);
-    expect(midScroll, 'page follows finger').toBeGreaterThan(150);
+    expect(midScroll, 'page stays put while the finger is down').toBeLessThan(2);
     await page.evaluate(() => window.dispatchEvent(Object.assign(new Event('touchend'), {})) );
     // short slow drag: springs back to page 1
     await page.evaluate(() => scrollTo(0, 0)); await page.waitForTimeout(300);
