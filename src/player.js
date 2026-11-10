@@ -61,7 +61,8 @@
     '#ames-mini button.x{background:none;width:30px;color:rgba(240,232,218,.6);}',
     '@media (prefers-reduced-motion:reduce){#ames-mini.playing .dot{animation:none}}',
     // desktop idle prompt: centred on the whole player, not just the middle column
-    '#ames-player:not(.active) .ames-idle{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;}'
+    '#ames-player:not(.active) .ames-idle{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;}',
+    '.ames-prompting #ames-player .ames-idle{visibility:hidden;}'
   ].join('\n');
 
   // Phone layout: two rows (type | tempo filters, then prompt or track). While a track is loaded the panel grows
@@ -298,6 +299,8 @@
     audio.play().then(function () { if (!audio.paused) state('playing'); }, function () { state('paused'); });
     sync();
   }
+  P.find = function (re) { return allTracks().filter(function (t) { return re.test(t.title); })[0]; };
+  P.start = function (t) { if (P.track) history.push(P.track); playTrack(t); };
   P.toggle = function () { if (playing()) audio.pause(); else if (P.track) audio.play().catch(sync); };
   P.stop = function () { audio.pause(); P.track = null; history = []; played = {}; state('stopped'); sync(); };
   P.next = function (auto) {

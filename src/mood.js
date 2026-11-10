@@ -35,6 +35,16 @@
     "#ames-mb .ames-empty{position:absolute;left:50%;top:68%;transform:translate(-50%,-50%);z-index:6;display:none;flex-direction:column;align-items:center;gap:10px;color:#F0E8DA;text-align:center;",
     "  font:300 11px/1.3 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.2em;text-transform:uppercase;white-space:nowrap;}",
     '#ames-mb .ames-empty.on{display:flex;}',
+    // first visit: a quiet prompt inside the map (never over a light: it sits wherever the map is emptiest, under the lights)
+    "#ames-mb .ames-prompt{position:absolute;left:50%;transform:translate(-50%,-50%);z-index:1;pointer-events:none;white-space:nowrap;padding:7px 14px;border-radius:999px;opacity:0;transition:opacity .6s ease;",
+    "  background:rgba(52,48,96,.32);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(240,232,218,.16);color:rgba(240,232,218,.85);",
+    "  font:300 10px/1 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.22em;text-transform:uppercase;}",
+    '#ames-mb .ames-stage.on .ames-prompt.on{opacity:1;}',
+    // the light to start with: a soft ring keeps opening around it until anything has been played
+    '#ames-mb .ames-light.ames-start::before{content:"";position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;pointer-events:none;',
+    '  border:1px solid rgba(240,232,218,.7);animation:ames-ring 2.4s ease-out infinite;}',
+    '@keyframes ames-ring{0%{transform:scale(.6);opacity:0}25%{opacity:.9}100%{transform:scale(1.9);opacity:0}}',
+    '@media (prefers-reduced-motion:reduce){#ames-mb .ames-light.ames-start::before{animation:none;transform:scale(1.2);opacity:.6;}}',
     "#ames-mb .ames-empty button{font:inherit;letter-spacing:.14em;text-transform:uppercase;color:#F0E8DA;cursor:pointer;background:rgba(240,232,218,.08);border:1px solid rgba(240,232,218,.35);border-radius:999px;padding:8px 18px;}",
     // playing: a soft, grainy halo that breathes (grain = the same fractal-noise texture as the page)
     '#ames-mb .ames-light::after{content:"";position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px 0 0 -35px;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .6s ease;',
@@ -56,7 +66,7 @@
     '@media (prefers-reduced-motion:reduce){#ames-mb .ames-light{animation-name:ames-float-soft,ames-twinkle!important;animation-duration:19s,7s!important;}',
     '  #ames-mb .ames-light.playing::after{animation:none;opacity:.8;transform:none;}}',
     // filtered out: greyed but still there and still drifting, so the whole catalogue stays visible (no twinkle, which would override the opacity)
-    '#ames-mb .ames-light.hid{animation-name:var(--ames-float),none!important;opacity:.5;filter:grayscale(1);pointer-events:none;cursor:default;}',
+    '#ames-mb .ames-light.hid{animation-name:var(--ames-float),none!important;opacity:.2;filter:grayscale(1);pointer-events:none;cursor:default;}',
     '@media (prefers-reduced-motion:reduce){#ames-mb .ames-light.hid{animation-name:ames-float-soft,none!important;}}'
   ].join('\n');
 
@@ -123,7 +133,14 @@
       var d = e.data;
       if (d && d.amesFilters) { S.filters.type = d.type || []; S.filters.tempo = d.tempo || []; S.boxes.forEach(applyFilters); }
       if (d && d.amesPlayerSize) S.boxes.forEach(function (b) { layout(b); reveal(b); });
+      if (d && (d.amesPlayerState === 'loading' || d.amesPlayerState === 'playing') && !S.played) markPlayed();   // even before the map is on screen
       if (d && d.amesPlayerState) S.boxes.forEach(function (b) { showState(b, d.amesPlayerState, d.src); });
+      if (d && d.amesShowTip) S.boxes.forEach(function (b) {
+        var l = (b._lights || []).filter(function (x) { return x.t.src === d.amesShowTip; })[0];
+        if (!l) return;
+        showTip(b, l.el, l.t);
+        clearTimeout(b._tipT); b._tipT = setTimeout(function () { hideTip(b); }, 3500);
+      });
     });
     // the browser bar showing/hiding resizes the window and Readymag re-centres the page after a moment:
     // lay out now and again once things have settled
@@ -162,14 +179,27 @@
     }
   }
 
+  // first-visit guidance (the prompt and the start-here ring) stops for good once anything has been played
+  var FEATURED = /^Groovin'? \(Chorus\)/i, PLAYED = 'amesPlayed';
+  function hasPlayed() { try { return localStorage.getItem(PLAYED) === '1'; } catch (e) { return !!S.played; } }
+  function markPlayed() {
+    S.played = true;
+    try { localStorage.setItem(PLAYED, '1'); } catch (e) {}
+    document.documentElement.classList.remove('ames-prompting');
+    S.boxes.forEach(function (b) {
+      if (b._prompt) b._prompt.classList.remove('on');
+      Array.prototype.forEach.call(b.querySelectorAll('.ames-start'), function (el) { el.classList.remove('ames-start'); });
+    });
+  }
+
   function rnd(a, b) { return (a + Math.random() * (b - a)).toFixed(2); }
   function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 
   // ---- layout ----
   // Axis-word boxes in each label image, in % of the image (measured from the PNG alpha).
   var LABELS = {
-    l: { w: 1200, h: 780,  top: [47.8, 0.3, 52.2, 4.0], bottom: [47.9, 95.9, 52.1, 99.5], side: [[0.2, 49.1, 9.4, 50.8], [87.3, 49.1, 99.8, 50.8]] },
-    p: { w: 700,  h: 1051, top: [43.6, 0.3, 55.0, 4.3], bottom: [43.9, 95.1, 54.7, 99.0], side: [[0.4, 49.1, 24.4, 51.1], [67.3, 49.2, 99.7, 51.0]] }
+    l: { w: 1200, h: 780,  top: [47.8, 2.4, 52.2, 4.0], bottom: [47.9, 95.9, 52.1, 97.4], side: [[2.6, 49.1, 9.4, 50.8], [87.3, 49.1, 96.8, 50.8]] },
+    p: { w: 700,  h: 1051, top: [43.1, 2.6, 55.4, 4.4], bottom: [43.6, 95.1, 55.0, 96.7], side: [[6.4, 48.8, 24.6, 51.2], [67.1, 48.9, 92.0, 51.0]] }
   };
   var R = 16;      // visible radius of a light (the 46px glow fades out well before its edge)
   var DRIFT = 14;  // ames-float carries a light up to ~13px from its spot in any direction (half that on desktop)
@@ -275,6 +305,27 @@
       l.el.style.top = (pts[i].y / H * 100).toFixed(2) + '%';
     });
     box._layout = { W: W, H: H, HB: HB, x0: x0, x1: x1, y0: y0, y1: y1, D: D };
+    if (box._prompt) {
+      // Phones: the strip between DARK and the player stays empty until the first song (that is what the open player
+      // later covers), so the prompt sits there. Wide screens: the emptiest spot among the lights, nearest the middle.
+      var pw = 210, ph = 30, best = null, words = obstacles.concat([rect(L.top), rect(L.bottom)]);
+      var below = portrait ? (Math.min(HB, H + (HB - H)) + rect(L.bottom)[3]) / 2 : 0;
+      if (portrait && HB - rect(L.bottom)[3] > ph + 16) best = { n: 0, x: W / 2, y: below };
+      for (var cy = y0; !best || best.n > 0 && cy <= y1; cy += 8) for (var cx = x0 + pw / 2; cx <= x1 - pw / 2; cx += 12) {
+        if (best && best.n === 0 && portrait) break;
+        var n = pts.reduce(function (m, p) {
+          var dx = Math.max(0, Math.abs(p.x - cx) - pw / 2), dy = Math.max(0, Math.abs(p.y - cy) - ph / 2);
+          return m + Math.max(0, R + drift + 6 - Math.sqrt(dx * dx + dy * dy));
+        }, 0) + (words.some(function (o) { return cx + pw / 2 > o[0] && cx - pw / 2 < o[2] && cy + ph / 2 > o[1] && cy - ph / 2 < o[3]; }) ? 1e3 : 0)
+          + Math.abs(cx - W / 2) * 0.02 + Math.abs(cy - (y0 + y1) / 2) * 0.01;
+        if (!best || n < best.n) best = { n: n, x: cx, y: cy };
+      }
+      box._prompt.style.left = best.x.toFixed(1) + 'px';
+      box._prompt.style.top = best.y.toFixed(1) + 'px';
+      var on = !hasPlayed();
+      box._prompt.classList.toggle('on', on);
+      document.documentElement.classList.toggle('ames-prompting', on);
+    }
   }
 
   // Fade the map in once: tracks placed, the visible label image decoded, and the player measured
@@ -299,6 +350,7 @@
       el.setAttribute('role', 'button');
       el.tabIndex = 0;
       el.setAttribute('aria-label', 'Play ' + t.title);
+      if (FEATURED.test(t.title) && !hasPlayed()) el.classList.add('ames-start');
       var fl = 'ames-float-' + 'abc'.charAt(Math.floor(Math.random() * 3));
       el.style.setProperty('--ames-float', fl);
       el.style.animation = fl + ' ' + rnd(7, 12) + 's ease-in-out -' + rnd(0, 12) + 's infinite, ' +
@@ -388,10 +440,12 @@
     box.setAttribute('aria-label', 'Mood map of tracks, from organic to electronic and dark to light');
     box.innerHTML = '<div class="ames-stage">' +
       '<div class="ames-empty" role="status"><span>No tracks match</span><button type="button">Clear</button></div>' +
-      '<img class="ames-labels l" alt="" data-src="' + BASE + 'assets/labels-landscape-tall.png">' +
-      '<img class="ames-labels p" alt="" data-src="' + BASE + 'assets/labels-portrait.png"></div>';
+      '<div class="ames-prompt" aria-hidden="true">' + (matchMedia('(hover: none)').matches ? 'Tap' : 'Click') + ' a light to listen</div>' +
+      '<img class="ames-labels l" alt="" data-src="' + BASE + 'assets/labels-landscape-v2.png">' +
+      '<img class="ames-labels p" alt="" data-src="' + BASE + 'assets/labels-portrait-v2.png"></div>';
     box._stage = box.firstChild;
     box._empty = box.querySelector('.ames-empty');
+    box._prompt = box.querySelector('.ames-prompt');
     box._empty.querySelector('button').addEventListener('click', function () { window.postMessage({ amesClearFilters: true }, '*'); });
     Array.prototype.forEach.call(box.querySelectorAll('img'), function (im) { im.addEventListener('load', function () { reveal(box); }); });
     setTimeout(function () { reveal(box); }, 1600);
@@ -402,7 +456,25 @@
     // re-measure whenever the Mood Browser page comes into view
     if (window.IntersectionObserver) new IntersectionObserver(function (es) {
       if (es.some(function (e) { return e.isIntersecting; })) { layout(box); setTimeout(function () { layout(box); }, 400); }
+      if (es.some(function (e) { return e.intersectionRatio >= 0.5; })) ripple(box);
     }, { threshold: [0, 0.5, 1] }).observe(box);
+  }
+
+  // Once per visit, when the map comes into view: a brightening sweeps across the lights, left to right,
+  // so they read as things to touch. Waits for the map to have faded in.
+  function ripple(box) {
+    if (S.rippled || !box._lights || !box._lights.length) return;
+    if (!box._stage.classList.contains('on')) { clearTimeout(box._rip); box._rip = setTimeout(function () { ripple(box); }, 300); return; }
+    S.rippled = true;
+    var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var ls = box._lights.slice().sort(function (a, b) { return parseFloat(a.el.style.left) - parseFloat(b.el.style.left); });
+    var step = Math.min(45, 1300 / ls.length);
+    ls.forEach(function (l, i) {
+      if (!l.el.animate) return;
+      l.el.animate(reduce ? [{ filter: 'brightness(1)' }, { filter: 'brightness(1.9)', offset: 0.4 }, { filter: 'brightness(1)' }]
+        : [{ filter: 'brightness(1)', scale: '1' }, { filter: 'brightness(2)', scale: '1.3', offset: 0.35 }, { filter: 'brightness(1)', scale: '1' }],
+        { duration: 760, delay: 250 + i * step, easing: 'ease-out' });
+    });
   }
 
   // Readymag can insert the widget after this script runs, and re-insert it on page revisits.

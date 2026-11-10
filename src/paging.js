@@ -5,6 +5,11 @@
   if (window.__amesPaging) return;
   // window.__amesPaging.last says what the most recent swipe did (handy from Safari's Web Inspector)
   var dbg = window.__amesPaging = { ready: false, last: null, openEmail: function (u) { location.href = u; } };
+  // the player and the track list load straight away, not when Readymag gets round to page 2's widgets, so Listen
+  // on page 1 can start a song inside the tap (both files are safe to load twice: the widgets load them too)
+  ['player.js', 'mood.js'].forEach(function (f) {
+    var sc = document.createElement('script'); sc.src = BASE + f + '?v=' + Math.floor(Date.now() / 6e4); document.head.appendChild(sc);
+  });
 
   var st = document.createElement('style');
   st.id = 'ames-paging-css';
@@ -75,16 +80,21 @@
     "  font:300 11px/46px 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif!important;letter-spacing:.26em!important;text-transform:uppercase;}",
     '.widget-form .button:hover,.widget-form .button:focus-visible{background:rgba(232,93,117,.35)!important;outline:none;}',
     '.widget-form .button svg{fill:#F0E8DA!important;}',
-    // first-visit hint on page 1
-    "#ames-hint{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:10000;",
+    // hints: a down arrow on page 1 until someone first moves on, an up arrow on the last page until someone goes back up
+    ".ames-hint{position:fixed;left:50%;transform:translateX(-50%);z-index:10000;",
     "  display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 14px;border:0;background:none;cursor:pointer;",
     "  font:300 10px/1 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;",
     '  letter-spacing:.24em;text-transform:uppercase;color:rgba(240,232,218,.8);text-shadow:0 0 10px rgba(52,48,96,.6);',
     '  transition:opacity .5s ease;}',
-    '#ames-hint svg{width:14px;height:14px;animation:ames-bob 1.8s ease-in-out infinite;}',
-    '#ames-hint.off{opacity:0;pointer-events:none;}',
-    '@keyframes ames-bob{0%,100%{transform:translateY(3px)}50%{transform:translateY(-4px)}}',
-    '@media (prefers-reduced-motion:reduce){#ames-hint svg{animation:none}}',
+    '#ames-hint{bottom:calc(16px + env(safe-area-inset-bottom));}',
+    '#ames-hint-up{top:calc(12px + env(safe-area-inset-top));}',
+    '.ames-hint svg{width:14px;height:14px;}',
+    '#ames-hint svg{animation:ames-bob-down 1.8s ease-in-out infinite;}',
+    '#ames-hint-up svg{animation:ames-bob-up 1.8s ease-in-out infinite;}',
+    '.ames-hint.off{opacity:0;pointer-events:none;}',
+    '@keyframes ames-bob-down{0%,100%{transform:translateY(-3px)}50%{transform:translateY(4px)}}',
+    '@keyframes ames-bob-up{0%,100%{transform:translateY(3px)}50%{transform:translateY(-4px)}}',
+    '@media (prefers-reduced-motion:reduce){.ames-hint svg{animation:none!important}}',
     // "email copied" note (desktop)
     "#ames-toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,12px);z-index:10001;opacity:0;pointer-events:none;",
     "  display:flex;align-items:center;gap:14px;padding:10px 18px;border-radius:999px;border:1px solid rgba(240,232,218,.22);",
@@ -219,75 +229,92 @@
 
     var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     function vertical() { return isPhone() && document.querySelector('.mag.viewer-type-vertical'); }
-    // Readymag's pages are not all the same height (Chrome on iPhone: 684 then 714...), so every target comes
-    // from where each page actually sits in the document, never from "page number x one height".
-    function tops() { return Array.prototype.map.call(document.querySelectorAll('.mag .page'), function (p) { return p.getBoundingClientRect().top + scrollY; }); }
-    function nearestIdx(y) { var t = tops(), best = 0; t.forEach(function (v, i) { if (Math.abs(v - y) < Math.abs(t[best] - y)) best = i; }); return best; }
+    // Readymag's pages are not all the same height (Chrome on iPhone: 684 then 714...), and a page far from the
+    // current one can report a stale position (on the last page, page 1 claimed to sit where page 5 is, which sent
+    // a swipe to page 2). A page's place is the sum of the heights above it; its own position is trusted only when it agrees.
+    function pageEls() { return document.querySelectorAll('.mag .page'); }
+    function tops() {
+      var ps = pageEls(), typical = 0, out = [], sum = 0;
+      Array.prototype.forEach.call(ps, function (p) { typical = Math.max(typical, p.offsetHeight); });
+      Array.prototype.forEach.call(ps, function (p, i) {
+        var t = p.getBoundingClientRect().top + scrollY, h = p.offsetHeight;
+        out.push(h > 0 && Math.abs(t - sum) < 40 ? t : sum);
+        sum += h || typical || innerHeight;
+      });
+      return out;
+    }
     function topOf(i) { var t = tops(); return t[Math.max(0, Math.min(t.length - 1, i))] || 0; }
-    function pageH() { var p = document.querySelectorAll('.mag .page'), c = p[curIdx()] || p[0]; return (c && c.offsetHeight) || innerHeight; }
     function count() { try { return mag.getPagesCount(); } catch (e) { return 1; } }
     function curIdx() { return (mag.currentPage && mag.currentPage.num || 1) - 1; }
 
-    // ---- phone: the page column is the window scroll; we drive it so the page follows the finger ----
-    var glide = null;
-    function stopGlide() { if (glide) { cancelAnimationFrame(glide); glide = null; } }
-    // At rest only the page(s) actually on screen are shown; while dragging/gliding every page is shown.
-    function markOff() {
-      var pages = document.querySelectorAll('.mag.viewer-type-vertical .page'), best = null, bestOv = -1, ov = [];
-      Array.prototype.forEach.call(pages, function (p, i) {
-        var r = p.getBoundingClientRect(), o = Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0));
-        ov[i] = o; if (o > bestOv) { bestOv = o; best = i; }
-      });
-      Array.prototype.forEach.call(pages, function (p, i) { p.classList.toggle('ames-off', i !== best && ov[i] < innerHeight * 0.15); });
-    }
-    function still(on) {
-      document.documentElement.classList.toggle('ames-still', on);
-      if (on && vertical()) markOff();
-      else Array.prototype.forEach.call(document.querySelectorAll('.mag .page.ames-off'), function (p) { p.classList.remove('ames-off'); });
+    // ---- phone: one page at a time. A swipe fades the page out and the next one in over the still sky:
+    // no other page is ever on screen, and the page we are on is tracked here, not guessed from the scroll ----
+    var cur = 0, busy = false;
+    function nearestIdx(y) { var t = tops(), best = Math.max(0, Math.min(cur, t.length - 1)); t.forEach(function (v, i) { if (Math.abs(v - y) < Math.abs(t[best] - y) - 1) best = i; }); return best; }
+    function showOnly(i) {
+      if (i < 0) return;
+      Array.prototype.forEach.call(document.querySelectorAll('.mag.viewer-type-vertical .page'), function (p, j) { p.classList.toggle('ames-off', j !== i); });
     }
     // Readymag can size the scrollable area shorter than its pages (Chrome on iPhone: 684px of scroll per
     // 714px page), so the last page could never be reached exactly. Make the scroll area as tall as the pages.
     function fitHeight() {
       if (!vertical()) return;
-      var ps = document.querySelectorAll('.mag .page'), last = ps[ps.length - 1];
+      var ps = pageEls(), last = ps[ps.length - 1];
       if (!last) return;
       var need = Math.ceil(topOf(ps.length - 1) + last.offsetHeight) + 'px';
       if (document.documentElement.style.getPropertyValue('--ames-doc-h') !== need) document.documentElement.style.setProperty('--ames-doc-h', need);
     }
     function maxScroll() { return Math.max(0, document.documentElement.scrollHeight - innerHeight); }
     function slotOf(i) { return Math.min(topOf(i), maxScroll()); }
-    // Glides to a page by index, re-reading where that page is on every frame: the first time a page is used
-    // Chrome on iPhone can still re-size it (684 to 714), which would otherwise leave a sliver of the page before.
-    function glideTo(i, speed) {
-      stopGlide();
-      still(false);
-      var from = scrollY, y = slotOf(i);
-      if (Math.abs(y - from) < 1) { scrollTo(0, y); still(true); return; }
-      // faster flicks finish faster; short corrections are quick
-      var dur = reduce ? 120 : Math.max(200, Math.min(480, Math.abs(y - from) / Math.max(0.9, Math.abs(speed || 0)) * 0.9 + 140));
-      var t0 = performance.now();
-      (function frame(now) {
-        var k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);   // ease-out cubic
-        y = slotOf(i);
-        scrollTo(0, from + (y - from) * e);
-        glide = k < 1 ? requestAnimationFrame(frame) : null;
-        if (!glide) { still(true); holdSlot(i); }
-      })(t0);
-    }
-    // ...and for a moment after landing, while Readymag finishes activating the page
+    function settle(i) { var y = slotOf(i); if (Math.abs(scrollY - y) > 1) scrollTo(0, y); showOnly(i); }
+    // the first time a page is used Chrome on iPhone can still re-size the one above it: keep it on its slot for a moment
     var holdT;
     function holdSlot(i) {
       var n = 0;
       clearInterval(holdT);
-      holdT = setInterval(function () {
-        if (++n > 12 || glide || !document.documentElement.classList.contains('ames-still')) return clearInterval(holdT);
-        var y = slotOf(i);
-        if (Math.abs(scrollY - y) > 1) { scrollTo(0, y); markOff(); }
-      }, 50);
+      holdT = setInterval(function () { if (++n > 12 || busy || i !== cur) return clearInterval(holdT); settle(i); }, 50);
     }
-    function goTo(n) {   // 1-based page number, used by the swipe hint and the now-playing bar
+    function contentOf(i) { var p = pageEls()[i]; return p && p.querySelector('.page-content-container'); }
+    function play(el, frames, ms, ease) {
+      if (!el || !el.animate) return Promise.resolve();
+      var an = el.animate(frames, { duration: ms, easing: ease || 'ease', fill: 'forwards' });
+      return (an.finished || Promise.resolve()).then(function () { return an; }, function () { return an; });
+    }
+    // drag feedback: only the page's own content leans a little with the finger (no other page shows)
+    function lean(dy) {
+      var c = contentOf(cur);
+      if (!c) return;
+      var d = Math.max(-26, Math.min(26, dy * 0.12));
+      c.style.translate = '0 ' + d.toFixed(1) + 'px';
+      c.style.opacity = String(1 - Math.abs(d) / 130);
+    }
+    function unlean() {
+      var c = contentOf(cur);
+      if (!c || !c.style.translate) return;
+      var from = c.style.translate;
+      c.style.translate = ''; c.style.opacity = '';
+      if (!reduce) play(c, [{ translate: from, opacity: c.style.opacity || 0.85 }, { translate: '0 0', opacity: 1 }], 220, 'cubic-bezier(.2,.8,.2,1)').then(function (an) { if (an && an.cancel) an.cancel(); });
+    }
+    function go(i) {
+      i = Math.max(0, Math.min(count() - 1, i));
+      if (i === cur || busy) { unlean(); return; }
+      var dir = i > cur ? 1 : -1, from = contentOf(cur), lean0 = from && from.style.translate || '0 0';
+      busy = true;
+      dbg.last = Object.assign(dbg.last || {}, { go: i + 1 });
+      play(from, [{ translate: lean0, opacity: from && from.style.opacity || 1 }, { translate: '0 ' + (-dir * 28) + 'px', opacity: 0 }], reduce ? 90 : 170, 'ease-in').then(function (an) {
+        cur = i;
+        fitHeight();
+        settle(i);
+        if (from) { from.style.translate = ''; from.style.opacity = ''; }
+        if (an && an.cancel) an.cancel();
+        var to = contentOf(i);
+        return play(to, [{ translate: '0 ' + (reduce ? 0 : dir * 36) + 'px', opacity: 0 }, { translate: '0 0', opacity: 1 }], reduce ? 160 : 380, 'cubic-bezier(.2,.8,.2,1)')
+          .then(function (b) { if (b && b.cancel) b.cancel(); });
+      }).then(function () { busy = false; holdSlot(i); }, function () { busy = false; settle(cur); });
+    }
+    function goTo(n) {   // 1-based page number, used by the hints, the rail, Listen and the now-playing bar
       n = Math.max(1, Math.min(count(), n));
-      if (vertical()) { fitHeight(); return glideTo(n - 1, 2); }
+      if (vertical()) { fitHeight(); return go(n - 1); }
       var steps = n - 1 - curIdx();
       (function step() {
         if (!steps) return;
@@ -308,16 +335,16 @@
       })();
     }
     dbg.goTo = goTo;
+    dbg.cur = function () { return cur + 1; };
 
-    var y0 = 0, x0 = 0, s0 = 0, axis = null, samples = [];
+    var y0 = 0, x0 = 0, axis = null, samples = [];
     // capture on window: runs before any Readymag widget can stopPropagation() the touch
     var OPTS = { passive: true, capture: true };
 
     window.addEventListener('touchstart', function (e) {
       if (e.touches.length !== 1) { axis = 'multi'; return; }
-      stopGlide();                                   // catching a gliding page holds it under the finger
       fitHeight();
-      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; s0 = scrollY;
+      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
       axis = null; samples = [[performance.now(), y0]];
     }, OPTS);
 
@@ -328,35 +355,23 @@
         if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
         axis = Math.abs(dy) > Math.abs(dx) * 1.2 ? 'y' : 'x';
       }
-      if (axis !== 'y' || !vertical()) return;
-      still(false);                                  // reveal the neighbours only once a vertical drag starts
+      if (axis !== 'y' || !vertical() || busy) return;
       samples.push([performance.now(), y]); if (samples.length > 6) samples.shift();
-      var max = document.documentElement.scrollHeight - innerHeight, target = s0 - dy;
-      // past the first/last page: resist instead of moving 1:1
-      if (target < 0) target = target * 0.3; else if (target > max) target = max + (target - max) * 0.3;
-      scrollTo(0, Math.max(0, Math.min(max, target)));
+      lean(dy);
     }, OPTS);
 
     window.addEventListener('touchend', function (e) {
       var y = e.changedTouches[0].clientY, dy = y - y0;
       var last = samples[samples.length - 1] || [0, y], first = samples[0] || last;
       var v = (last[1] - first[1]) / Math.max(1, last[0] - first[0]);       // px/ms, negative = finger moving up
-      dbg.last = { dy: Math.round(dy), v: +v.toFixed(2), axis: axis, phone: isPhone(), vertical: !!vertical() };
-      if (!isPhone() || axis !== 'y') {
-        // a tap (possibly catching a gliding page): settle on the nearest page
-        if (vertical()) { var near = nearestIdx(scrollY); if (Math.abs(scrollY - slotOf(near)) > 1) glideTo(near, 1); else still(true); }
-        return;
-      }
+      dbg.last = { dy: Math.round(dy), v: +v.toFixed(2), axis: axis, phone: isPhone(), vertical: !!vertical(), from: cur + 1 };
+      if (!isPhone() || axis !== 'y') return;
       if (!vertical()) {                              // phone in landscape (horizontal viewer): plain page turn
         if (Math.abs(dy) > innerHeight * 0.15) { if (dy < 0) mag.goNextPage(); else mag.goPrevPage(); }
         return;
       }
-      var H = pageH(), from = nearestIdx(s0);
-      var commit = Math.abs(dy) > H * 0.18 || (Math.abs(v) > 0.35 && Math.abs(dy) > 24);
-      var to = commit ? from + (dy < 0 ? 1 : -1) : from;
-      to = Math.max(0, Math.min(count() - 1, to));
-      dbg.last.go = to > from ? 'next' : to < from ? 'prev' : 'stay';
-      glideTo(to, v);
+      var commit = Math.abs(dy) > 60 || (Math.abs(v) > 0.3 && Math.abs(dy) > 24);
+      if (commit) go(cur + (dy < 0 ? 1 : -1)); else unlean();
     }, OPTS);
 
     // ---- desktop: one page per wheel / trackpad gesture (the trackpad's coasting tail is ignored) ----
@@ -408,29 +423,32 @@
       sky.style.backgroundImage = 'url("' + BASE + 'assets/' + (innerWidth < innerHeight ? 'bg-portrait.jpg' : 'bg-landscape.jpg') + '")';
       var magEl = document.querySelector('.mag') || document.body;
       magEl.insertBefore(sky, magEl.firstChild);
-      fitHeight();
-      still(true);
+      // start once Readymag has built its pages, on the page it opened (a link such as /2/ opens on page 2)
+      (function start() {
+        if (pageEls().length < count() || !pageEls().length) return setTimeout(start, 100);
+        fitHeight();
+        cur = Math.max(0, Math.min(count() - 1, curIdx()));
+        settle(cur);
+        holdSlot(cur);
+      })();
       setTimeout(resetZoom, 600);
       setInterval(fitHeight, 1000);
-      // browser bar showing/hiding: Readymag resizes the pages but leaves the scroll where it was, so the
-      // current page slides off its slot (a sliver of the previous page appears). Put it back exactly.
+      // browser bar showing/hiding: Readymag resizes the pages but leaves the scroll where it was: put the page back
       var resizeT;
       addEventListener('resize', function () {
         fitHeight();
         clearTimeout(resizeT);
-        resizeT = setTimeout(function () {
-          if (glide || !document.documentElement.classList.contains('ames-still')) return;
-          var y = Math.min(topOf(nearestIdx(scrollY)), maxScroll());
-          if (Math.abs(scrollY - y) > 1) scrollTo(0, y);
-          markOff();
-        }, 150);
+        resizeT = setTimeout(function () { if (!busy) settle(cur); }, 150);
       });
-      // anything else that moves the page (Readymag itself, the address bar): re-mark once scrolling stops
+      // anything else that moves the scroll (a focused form field, Readymag itself): follow it to the nearest page
       var scrollEnd;
       addEventListener('scroll', function () {
-        if (glide || !document.documentElement.classList.contains('ames-still')) return;
-        Array.prototype.forEach.call(document.querySelectorAll('.mag .page.ames-off'), function (p) { p.classList.remove('ames-off'); });
-        clearTimeout(scrollEnd); scrollEnd = setTimeout(markOff, 120);
+        if (busy) return;
+        clearTimeout(scrollEnd);
+        scrollEnd = setTimeout(function () {
+          if (busy || Math.abs(scrollY - slotOf(cur)) <= 2) return;
+          cur = nearestIdx(scrollY); settle(cur);
+        }, 160);
       }, { passive: true });
     }
     if (DEBUG) debugPanel(mag);
@@ -441,6 +459,7 @@
 
   // ---- site-wide touches that don't belong to a widget ----
   var NAMES = ['Home', 'Listen', 'About', 'Press', 'Contact'];
+  var FEATURED = /^Groovin'? \(Chorus\)/i;   // the song Listen starts with
   function enhance(mag) {
     document.documentElement.lang = document.documentElement.lang || 'en';
     Array.prototype.forEach.call(document.querySelectorAll('link[rel*="icon"]'), function (l) { if (/\/dist\/img\/favicons\//.test(l.href)) l.remove(); });
@@ -551,7 +570,13 @@
       btn = document.createElement('button');
       btn.id = 'ames-listen'; btn.type = 'button';
       btn.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1v14l12-7z"/></svg>Listen';
-      btn.addEventListener('click', function () { if (dbg.goTo) dbg.goTo(2); });
+      btn.addEventListener('click', function () {
+        // straight into a song: the featured one starts as the map arrives (inside the tap, so phones allow the sound)
+        var P = window.__amesPlayer, t = P && P.find && P.find(FEATURED);
+        if (t) P.start(t);
+        if (dbg.goTo) dbg.goTo(2);
+        if (t) setTimeout(function () { window.postMessage({ amesShowTip: t.src }, '*'); }, 650);
+      });
     }
     // lives in Readymag's content layer (same coordinates and scaling as the widgets, on every device)
     if (btn.parentNode !== box) box.appendChild(btn);
@@ -571,27 +596,32 @@
     }
   }
 
-  // ---- page rail + swipe hint ----
-  var SEEN = 'amesSwipedUp';
-  function seen() { try { return localStorage.getItem(SEEN) === '1'; } catch (e) { return false; } }
-  function markSeen() { try { localStorage.setItem(SEEN, '1'); } catch (e) {} }
+  // ---- page rail + hints ----
+  var SEEN = 'amesSwipedUp', BACK = 'amesWentBack';
+  function seen(k) { try { return localStorage.getItem(k || SEEN) === '1'; } catch (e) { return false; } }
+  function markSeen(k) { try { localStorage.setItem(k || SEEN, '1'); } catch (e) {} }
 
   function buildNav(mag) {
     var nav = document.createElement('div');
     nav.id = 'ames-nav';
+    var word = isPhone() ? 'Swipe' : 'Scroll';
     nav.innerHTML = '<nav id="ames-rail" aria-label="Pages"></nav>' +
-      '<button id="ames-hint" type="button" aria-label="Next page">' +
-      '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M7 12V2M2.5 6.5 7 2l4.5 4.5"/></svg>' +
-      '<span>' + (isPhone() ? 'Swipe up' : 'Scroll') + '</span></button>';
+      '<button id="ames-hint" class="ames-hint off" type="button" aria-label="Next page"><span>' + word + '</span>' +
+      '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M7 2v10M2.5 7.5 7 12l4.5-4.5"/></svg></button>' +
+      '<button id="ames-hint-up" class="ames-hint off" type="button" aria-label="Previous page">' +
+      '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M7 12V2M2.5 6.5 7 2l4.5 4.5"/></svg><span>' + word + '</span></button>';
     document.body.appendChild(nav);
-    var rail = nav.querySelector('#ames-rail'), hint = nav.querySelector('#ames-hint');
-    hint.addEventListener('click', function () { if (dbg.goTo) dbg.goTo((mag.currentPage && mag.currentPage.num || 1) + 1); else if (!mag.isLastPage()) mag.goNextPage(); });
+    var rail = nav.querySelector('#ames-rail'), hint = nav.querySelector('#ames-hint'), up = nav.querySelector('#ames-hint-up');
+    function page() { return (dbg.cur ? dbg.cur() : (mag.currentPage && mag.currentPage.num)) || 1; }
+    hint.addEventListener('click', function () { if (dbg.goTo) dbg.goTo(page() + 1); else if (!mag.isLastPage()) mag.goNextPage(); });
+    up.addEventListener('click', function () { if (dbg.goTo) dbg.goTo(page() - 1); else if (!mag.isFirstPage()) mag.goPrevPage(); });
 
-    var shown = { n: 0, count: 0, hint: null };
+    var shown = { n: 0, count: 0, hint: null, up: null };
     function sync() {
       var count = 0, n = 1;
       try { count = mag.getPagesCount(); n = (mag.currentPage && mag.currentPage.num) || 1; } catch (e) { return; }
       if (n > 1 && !seen()) markSeen();
+      if (shown.n === count && n < count && count > 1 && !seen(BACK)) markSeen(BACK);   // went back up from the last page
       if (count !== shown.count) {
         rail.innerHTML = '';
         for (var ci = 0; ci < count; ci++) (function (pn) {
@@ -608,8 +638,9 @@
         Array.prototype.forEach.call(rail.children, function (d, i) { d.firstChild.classList.toggle('on', i === n - 1); if (i === n - 1) d.setAttribute('aria-current', 'page'); else d.removeAttribute('aria-current'); });
         shown.n = n;
       }
-      var showHint = n === 1 && !seen() && count > 1;
+      var showHint = n === 1 && !seen() && count > 1, showUp = n === count && count > 1 && !seen(BACK);
       if (showHint !== shown.hint) { hint.classList.toggle('off', !showHint); shown.hint = showHint; }
+      if (showUp !== shown.up) { up.classList.toggle('off', !showUp); shown.up = showUp; }
       dbg.page = n;
       var want = n === 1 || !NAMES[n - 1] ? 'Ames Harding' : 'Ames Harding \u2014 ' + NAMES[n - 1];
       if (document.title !== want) document.title = want;

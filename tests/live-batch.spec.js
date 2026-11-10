@@ -55,7 +55,8 @@ const isDesktop = (i) => i.project.name.startsWith('desktop');
       const grey = await page.evaluate(() => { const h = [...document.querySelectorAll('#ames-mb .ames-light.hid')]; return { n: h.length, all: document.querySelectorAll('#ames-mb .ames-light').length, op: getComputedStyle(h[0]).opacity, f: getComputedStyle(h[0]).filter, anim: getComputedStyle(h[0]).animationName }; });
       console.log('GREY', JSON.stringify(grey));
       expect(grey.n).toBeGreaterThan(0);
-      expect(parseFloat(grey.op)).toBeGreaterThan(0.4);
+      expect(parseFloat(grey.op), 'faint but still there').toBeGreaterThan(0.12);
+      expect(parseFloat(grey.op)).toBeLessThan(0.3);
       await page.screenshot({ path: `audit-results/batch-grey-${browserName}.png` });
 
       // nothing matches: the message clears the ORGANIC / ELECTRONIC line
