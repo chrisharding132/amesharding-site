@@ -275,6 +275,16 @@
       holdT = setInterval(function () { if (++n > 12 || busy || i !== cur) return clearInterval(holdT); settle(i); }, 50);
     }
     function contentOf(i) { var p = pageEls()[i]; return p && p.querySelector('.page-content-container'); }
+    // a page's photos ready to paint (or 450ms, whichever is first), so a page never fades in empty on a slow phone
+    function ready(i) {
+      var p = pageEls()[i];
+      if (!p) return Promise.resolve();
+      var jobs = Array.prototype.map.call(p.querySelectorAll('img'), function (im) {
+        im.loading = 'eager';
+        return im.decode ? im.decode().catch(function () {}) : null;
+      });
+      return Promise.race([Promise.all(jobs), new Promise(function (r) { setTimeout(r, 450); })]);
+    }
     function play(el, frames, ms, ease) {
       if (!el || !el.animate) return Promise.resolve();
       var an = el.animate(frames, { duration: ms, easing: ease || 'ease', fill: 'forwards' });
@@ -308,31 +318,46 @@
         if (from) { from.style.translate = ''; from.style.opacity = ''; }
         if (an && an.cancel) an.cancel();
         var to = contentOf(i);
-        return play(to, [{ translate: '0 ' + (reduce ? 0 : dir * 36) + 'px', opacity: 0 }, { translate: '0 0', opacity: 1 }], reduce ? 160 : 380, 'cubic-bezier(.2,.8,.2,1)')
-          .then(function (b) { if (b && b.cancel) b.cancel(); });
-      }).then(function () { busy = false; holdSlot(i); }, function () { busy = false; settle(cur); });
+        if (to) to.style.opacity = '0';
+        return ready(i).then(function () {
+          return play(to, [{ translate: '0 ' + (reduce ? 0 : dir * 36) + 'px', opacity: 0 }, { translate: '0 0', opacity: 1 }], reduce ? 160 : 380, 'cubic-bezier(.2,.8,.2,1)');
+        }).then(function (b) { if (to) to.style.opacity = ''; if (b && b.cancel) b.cancel(); });
+      }).then(function () { busy = false; holdSlot(i); warm(i); }, function () { var c = contentOf(cur); if (c) c.style.opacity = ''; busy = false; settle(cur); });
+    }
+    // the pages either side get their photos ready ahead of time
+    function warm(i) { [i - 1, i + 1].forEach(function (j) { if (j >= 0 && j < count()) ready(j); });
     }
     function goTo(n) {   // 1-based page number, used by the hints, the rail, Listen and the now-playing bar
       n = Math.max(1, Math.min(count(), n));
       if (vertical()) { fitHeight(); return go(n - 1); }
-      var steps = n - 1 - curIdx();
+      // more than one page away (the rail): straight there, without flashing the pages in between
+      if (Math.abs(n - 1 - curIdx()) > 1 && typeof mag.showPage === 'function' && performance.now() - lastTurn > 560) {
+        lastTurn = performance.now();
+        try { mag.showPage(n); return; } catch (e) {}
+      }
       (function step() {
-        if (!steps) return;
-        if (steps > 0) { turn(1); steps--; } else { turn(-1); steps++; }
-        setTimeout(step, 260);
+        var at = curIdx();
+        if (at === n - 1) return;
+        turn(at < n - 1 ? 1 : -1);
+        setTimeout(step, 640);
       })();
     }
-    // Readymag ignores a page change asked for during its 520ms transition: keep asking until it is taken
-    var turnT;
+    // Readymag ignores a page change asked for during its 520ms transition, and on a heavy page the change itself
+    // can land late: asking again too soon then moves two pages. So a change waits until the last one has had its
+    // 520ms, is asked for once, and is only asked for again if, well after that, nothing has moved.
+    var turnT, lastTurn = 0;
     function turn(dir) {
       clearTimeout(turnT);
-      var tries = 0;
-      (function ask() {
-        var n = curIdx();
+      var from = curIdx();
+      (function ask(tries) {
+        if (curIdx() !== from) return;                 // it moved
         if (dir > 0 ? mag.isLastPage() : mag.isFirstPage()) return;
+        var wait = lastTurn + 560 - performance.now();
+        if (wait > 0) { turnT = setTimeout(function () { ask(tries); }, wait); return; }
+        lastTurn = performance.now();
         if (dir > 0) mag.goNextPage(); else mag.goPrevPage();
-        if (curIdx() === n && ++tries < 14) turnT = setTimeout(ask, 50);
-      })();
+        if (tries < 2) turnT = setTimeout(function () { ask(tries + 1); }, 700);
+      })(0);
     }
     dbg.goTo = goTo;
     dbg.cur = function () { return cur + 1; };
@@ -375,7 +400,8 @@
     }, OPTS);
 
     // ---- desktop: one page per wheel / trackpad gesture (the trackpad's coasting tail is ignored) ----
-    var acc = 0, locked = false, quiet, lastAbs = 0, lastDir = 0, turnedAt = 0;
+    var acc = 0, locked = false, quiet, lastDir = 0, turnedAt = 0, hist = [], peak = 0, trough = Infinity, fading = false;
+    function avg(a) { return a.reduce(function (m, v) { return m + v; }, 0) / (a.length || 1); }
     window.addEventListener('wheel', function (e) {
       if (isPhone() || e.ctrlKey) return;                         // ctrl+wheel = pinch-zoom on trackpads
       var inner = e.target.closest && e.target.closest('textarea, select, [data-ames-scroll]');
@@ -386,15 +412,23 @@
       e.preventDefault();
       var abs = Math.abs(d), dir = d > 0 ? 1 : -1, now = performance.now();
       clearTimeout(quiet);
-      quiet = setTimeout(function () { locked = false; acc = 0; lastAbs = 0; }, 180);   // gesture over after 180ms of silence
-      // a trackpad's coast only ever fades, and can run for a second or more: a push that gets stronger,
-      // or goes the other way, is a new gesture even though the coast never fell silent
-      if (locked && now - turnedAt > 250 && (dir !== lastDir || (abs > lastAbs * 1.5 && abs >= 6))) { locked = false; acc = 0; }
-      lastAbs = abs; lastDir = dir;
+      quiet = setTimeout(function () { locked = false; acc = 0; }, 180);   // gesture over after 180ms of silence
+      // A flick keeps building for a moment after it has turned the page, then coasts and fades for a second or
+      // more, never perfectly smoothly (the browser can merge two frames into one event). Only once it is clearly
+      // fading can a renewed, stronger push count as a new flick (or any change of direction).
+      if (locked) {
+        hist.push(abs); if (hist.length > 3) hist.shift();
+        var r = avg(hist);
+        peak = Math.max(peak, r);
+        if (r < peak * 0.8) fading = true;
+        if (fading) trough = Math.min(trough, r);
+        if (dir !== lastDir || (fading && now - turnedAt > 300 && r > Math.max(trough * 1.6, trough + 6))) { locked = false; acc = 0; }
+      }
+      lastDir = dir;
       if (locked) return;
       acc += d;
       if (Math.abs(acc) < 14) return;
-      locked = true; turnedAt = now;
+      locked = true; turnedAt = now; hist = []; peak = 0; trough = Infinity; fading = false;
       dbg.lastWheel = acc > 0 ? 'next' : 'prev';
       turn(acc > 0 ? 1 : -1);
     }, { passive: false, capture: true });
@@ -430,6 +464,7 @@
         cur = Math.max(0, Math.min(count() - 1, curIdx()));
         settle(cur);
         holdSlot(cur);
+        warm(cur);
       })();
       setTimeout(resetZoom, 600);
       setInterval(fitHeight, 1000);
