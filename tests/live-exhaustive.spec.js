@@ -43,6 +43,7 @@ const screenState = (page) => page.evaluate(() => {
 // the current page is fully in place and showing its content, and no other page is on screen
 async function expectShowing(page, n, label) {
   let s;
+  await page.waitForFunction(() => window.__amesPaging && window.__amesPaging.ready && window.RM && RM.viewerRouter && RM.viewerRouter.mag, null, { timeout: 15000 });
   for (let k = 0; k < 20; k++) {        // up to 2s for the arrival animation to finish
     s = await screenState(page);
     if (s.rm === n && (!s.phone || s.cur === n) && s.opacity > 0.99 && s.widgets > 0 && s.visible.length === 1 && s.visible[0] === n && Math.abs(s.top) <= 1 && Math.abs(s.left) <= 1) break;
