@@ -1,6 +1,6 @@
 // Phone navigation on the published page (LOCAL=1: with the local code): one page at a time, hints, Listen, map guidance.
 // LIVE=1 LOCAL=1 npx playwright test tests/live-swipe.spec.js --project=desktop-chromium
-import { test, expect } from '@playwright/test';
+import { test, expect } from './mute.js';
 import { readFileSync } from 'node:fs';
 
 async function local(page) {

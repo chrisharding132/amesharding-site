@@ -1,5 +1,5 @@
 // Filmstrip of the first 4s on throttled 4G. HEAD_BG=1 injects the proposed <head> background style.
-import { test, devices } from '@playwright/test';
+import { test, devices } from './mute.js';
 const { defaultBrowserType, ...dev } = devices['iPhone 13'];
 test.use(dev);
 // stands in for changing each page's background colour in Readymag from white to the image's purple

@@ -1,6 +1,6 @@
 // The phone map must keep its height + tall labels however you arrive at page 2 and when the browser bar hides.
 // LIVE=1 [LOCAL=1] npx playwright test tests/live-viewport.spec.js --project=iphone-webkit
-import { test, expect, devices } from '@playwright/test';
+import { test, expect, devices } from './mute.js';
 import { PHONE } from './phones.js';
 import { readFileSync } from 'node:fs';
 const { defaultBrowserType, ...dev } = PHONE;

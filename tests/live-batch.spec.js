@@ -1,6 +1,6 @@
 // The published pages with the local code (LOCAL=1) or as deployed: seek, map spread, filters, form, wheel, photos, first swipe.
 // LIVE=1 LOCAL=1 npx playwright test tests/live-batch.spec.js --project=desktop-chromium --project=desktop-webkit --project=chrome-ios-webkit
-import { test, expect } from '@playwright/test';
+import { test, expect } from './mute.js';
 import { readFileSync } from 'node:fs';
 
 async function local(page) {

@@ -1,6 +1,6 @@
 // Tab icon + tab names on the published site, and the very first paint is purple, not white.
 // LIVE=1 npx playwright test tests/live-tabs.spec.js --project=desktop-chromium
-import { test, expect } from '@playwright/test';
+import { test, expect } from './mute.js';
 
 test.use({ viewport: { width: 1440, height: 900 } });
 

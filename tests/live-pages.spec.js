@@ -1,6 +1,6 @@
 // No black between or past pages; lights drift even with Reduce Motion.
 // LIVE=1 [LOCAL=1] [CHROME_IOS=1] npx playwright test tests/live-pages.spec.js --project=iphone-webkit
-import { test, expect } from '@playwright/test';
+import { test, expect } from './mute.js';
 import { readFileSync } from 'node:fs';
 import { PHONE } from './phones.js';
 const { defaultBrowserType, ...dev } = PHONE;

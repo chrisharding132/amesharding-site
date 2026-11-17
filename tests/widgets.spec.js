@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './mute.js';
 
 function trackErrors(page) {
   const errors = [];

@@ -1,5 +1,5 @@
 // Live layout check on several screens. LIVE=1 [LOCAL=1] npx playwright test tests/live-layout.spec.js --project=iphone-webkit
-import { test, expect, devices } from '@playwright/test';
+import { test, expect, devices } from './mute.js';
 import { chromeIOS } from './phones.js';
 import { readFileSync } from 'node:fs';
 

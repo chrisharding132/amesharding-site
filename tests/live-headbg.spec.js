@@ -1,6 +1,6 @@
 // Simulates the planned Readymag change: <HEAD> snippet added, per-page background pictures removed.
 // LIVE=1 [SIMULATE=1] npx playwright test tests/live-headbg.spec.js --project=desktop-chromium
-import { test, expect, devices } from '@playwright/test';
+import { test, expect, devices } from './mute.js';
 import { PHONE } from './phones.js';
 import { readFileSync } from 'node:fs';
 const HEAD = readFileSync(new URL('../readymag/head-code.html', import.meta.url), 'utf8');

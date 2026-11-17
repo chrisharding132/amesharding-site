@@ -1,5 +1,5 @@
 // Live navigation feel. LIVE=1 [LOCAL=1] npx playwright test tests/live-nav.spec.js
-import { test, expect, devices } from '@playwright/test';
+import { test, expect, devices } from './mute.js';
 import { PHONE } from './phones.js';
 import { readFileSync } from 'node:fs';
 

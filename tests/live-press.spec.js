@@ -1,6 +1,6 @@
 // Page 4 at the Chrome-on-iPhone size: every line of text sits inside the visible screen.
 // CHROME_IOS=1 LIVE=1 npx playwright test tests/live-press.spec.js --project=chrome-ios-webkit
-import { test, expect } from '@playwright/test';
+import { test, expect } from './mute.js';
 
 test('page 4 text fits the visible screen', async ({ page }) => {
   test.setTimeout(40000);

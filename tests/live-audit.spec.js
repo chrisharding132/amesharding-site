@@ -1,5 +1,5 @@
 // Whole-site audit on the published site. LIVE=1 npx playwright test tests/live-audit.spec.js
-import { test, devices } from '@playwright/test';
+import { test, devices } from './mute.js';
 import { PHONE } from './phones.js';
 import { writeFileSync } from 'node:fs';
 

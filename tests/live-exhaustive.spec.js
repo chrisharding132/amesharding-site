@@ -3,7 +3,7 @@
 // Phones: Chrome's touch emulation at 6 sizes (swipes, flicks, double swipes, links, address bar), plus WebKit.
 //   LIVE=1 npx playwright test tests/live-exhaustive.spec.js --project=desktop-chromium --project=desktop-webkit
 //   LIVE=1 CHROME_IOS=1 npx playwright test tests/live-exhaustive.spec.js --project=iphone-webkit --project=chrome-ios-webkit
-import { test, expect } from '@playwright/test';
+import { test, expect } from './mute.js';
 import { readFileSync } from 'node:fs';
 
 const SITE = 'https://amesharding.com/';

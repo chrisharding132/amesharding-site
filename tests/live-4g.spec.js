@@ -1,5 +1,5 @@
 // Time-to-background on a throttled "fast 4G" phone. LIVE=1 npx playwright test tests/live-4g.spec.js --project=desktop-chromium
-import { test, devices } from '@playwright/test';
+import { test, devices } from './mute.js';
 const { defaultBrowserType, ...dev } = devices['iPhone 13'];
 test.use(dev);
 test('phone on 4G: time until page 1 background is painted', async ({ page }) => {

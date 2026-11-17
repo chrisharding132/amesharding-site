@@ -1,6 +1,6 @@
 // Smoke test against the published site. Run with: npx playwright test tests/live.spec.js --project=iphone-webkit
 // LOCAL=1 serves src/ from this checkout in place of GitHub Pages: try a change on the real site before pushing.
-import { test, expect } from '@playwright/test';
+import { test, expect } from './mute.js';
 import { readFileSync } from 'node:fs';
 
 test.beforeEach(async ({ page }) => {

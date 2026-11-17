@@ -1,5 +1,5 @@
 // Dots stay inside the screen on every phone, resting and floating, with spacing that keeps tap areas apart.
-import { test, expect, devices } from '@playwright/test';
+import { test, expect, devices } from './mute.js';
 import { readFileSync } from 'node:fs';
 import { chromeIOS } from './phones.js';
 const PHONES = { 'iPhone SE': devices['iPhone SE'], 'iPhone 13': devices['iPhone 13'], 'iPhone 15 Pro Max': devices['iPhone 15 Pro Max'], 'Galaxy S9+': devices['Galaxy S9+'], 'Pixel 7': devices['Pixel 7'], 'Chrome iOS': chromeIOS };
