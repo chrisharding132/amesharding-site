@@ -91,33 +91,40 @@ test.describe('desktop', () => {
         await expectShowing(page, n, `${browserName} ${w}x${h} link /${n}/`);
         await page.screenshot({ path: `audit-results/ex-desk-${browserName}-${w}-p${n}.png` });
       }
+      // page 1 moves on to the map by itself
       await page.goto(SITE);
-      await page.waitForTimeout(2500);
+      await page.waitForFunction(() => window.RM && RM.viewerRouter.mag.currentPage.num === 2, null, { timeout: 12000 });
+      await expectShowing(page, 2, `${browserName} ${w}x${h} landing moves on`);
       await page.mouse.move(w / 2, h / 2);
-      // trackpad, clean and with merged frames: exactly one page per flick, down and back up
+      // trackpad, clean and with merged frames: exactly one page per flick, down and back up (up stops at page 2)
       for (const merge of [false, true]) {
-        for (let n = 2; n <= 5; n++) { await trackpad(page, 1, { merge }); await expectShowing(page, n, `${browserName} ${w}x${h} trackpad${merge ? '+merged' : ''} down to ${n}`); }
+        for (let n = 3; n <= 5; n++) { await trackpad(page, 1, { merge }); await expectShowing(page, n, `${browserName} ${w}x${h} trackpad${merge ? '+merged' : ''} down to ${n}`); }
         await trackpad(page, 1, { merge }); await expectShowing(page, 5, `${browserName} ${w}x${h} trackpad past the end`);
-        for (let n = 4; n >= 1; n--) { await trackpad(page, -1, { merge }); await expectShowing(page, n, `${browserName} ${w}x${h} trackpad${merge ? '+merged' : ''} up to ${n}`); }
-        await trackpad(page, -1, { merge }); await expectShowing(page, 1, `${browserName} ${w}x${h} trackpad past the start`);
+        for (let n = 4; n >= 2; n--) { await trackpad(page, -1, { merge }); await expectShowing(page, n, `${browserName} ${w}x${h} trackpad${merge ? '+merged' : ''} up to ${n}`); }
+        await trackpad(page, -1, { merge }); await expectShowing(page, 2, `${browserName} ${w}x${h} trackpad stops at page 2`);
       }
       // a hard flick, then a second flick straight after
-      await trackpad(page, 1, { strength: 120 }); await expectShowing(page, 2, `${browserName} ${w}x${h} hard flick`);
+      await trackpad(page, 1, { strength: 120 }); await expectShowing(page, 3, `${browserName} ${w}x${h} hard flick`);
       await trackpad(page, 1); await trackpad(page, 1);
-      await expectShowing(page, 4, `${browserName} ${w}x${h} two flicks in a row`);
+      await expectShowing(page, 5, `${browserName} ${w}x${h} two flicks in a row`);
       // mouse wheel: one notch = one page; a quick spin of 3 notches = one page
-      await notch(page, -1); await expectShowing(page, 3, `${browserName} ${w}x${h} mouse notch up`);
-      await notch(page, 1); await expectShowing(page, 4, `${browserName} ${w}x${h} mouse notch down`);
-      await notch(page, -1, 3); await expectShowing(page, 3, `${browserName} ${w}x${h} mouse spin`);
-      // keys
-      await page.keyboard.press('ArrowDown'); await page.waitForTimeout(900); await expectShowing(page, 4, `${browserName} ${w}x${h} arrow down`);
-      await page.keyboard.press('ArrowUp'); await page.waitForTimeout(900); await expectShowing(page, 3, `${browserName} ${w}x${h} arrow up`);
-      // rail
-      for (const n of [5, 1, 4, 2]) {
-        await page.locator('#ames-rail button').nth(n - 1).click();
+      await notch(page, -1); await expectShowing(page, 4, `${browserName} ${w}x${h} mouse notch up`);
+      await notch(page, 1); await expectShowing(page, 5, `${browserName} ${w}x${h} mouse notch down`);
+      await notch(page, -1, 3); await expectShowing(page, 4, `${browserName} ${w}x${h} mouse spin`);
+      // keys (up stops at page 2 too)
+      await page.keyboard.press('ArrowDown'); await page.waitForTimeout(900); await expectShowing(page, 5, `${browserName} ${w}x${h} arrow down`);
+      await page.keyboard.press('ArrowUp'); await page.waitForTimeout(900); await expectShowing(page, 4, `${browserName} ${w}x${h} arrow up`);
+      // rail (pages 2 to 5)
+      for (const n of [5, 2, 4, 3]) {
+        await page.locator('#ames-rail button').nth(n - 2).click();
         await page.waitForTimeout(1600);
         await expectShowing(page, n, `${browserName} ${w}x${h} rail to ${n}`);
       }
+      await page.keyboard.press('ArrowUp'); await page.keyboard.press('ArrowUp'); await page.waitForTimeout(1400);
+      await expectShowing(page, 2, `${browserName} ${w}x${h} up key stops at page 2`);
+      // the header goes home
+      await page.locator('#ames-head').click(); await page.waitForTimeout(1600);
+      await expectShowing(page, 1, `${browserName} ${w}x${h} header home`);
       console.log('ERRS', browserName, w, JSON.stringify(errs));
       expect.soft(errs, 'no script errors').toEqual([]);
     });
@@ -157,19 +164,21 @@ for (const [w, h, dpr, motion] of PHONES) {
         await page.screenshot({ path: `audit-results/ex-phone-${w}x${h}-p${n}.png` });
       }
       await page.goto(SITE);
-      await page.waitForTimeout(2500);
+      await page.waitForTimeout(1200);
       const cdp = await page.context().newCDPSession(page);
       await watchOne(page);
       const lo = Math.round(h * 0.78), hi = Math.round(h * 0.25);
-      // slow drags and quick flicks, down and back
+      // a swipe on the landing page goes at once
+      await swipe(page, cdp, lo, hi, 200); await page.waitForTimeout(700); await expectShowing(page, 2, `phone ${w}x${h} swipe off the landing page`);
+      // slow drags and quick flicks, down and back (back stops at page 2)
       for (const ms of [380, 90]) {
-        for (let n = 2; n <= 5; n++) { await swipe(page, cdp, lo, hi, ms); await page.waitForTimeout(700); await expectShowing(page, n, `phone ${w}x${h} swipe(${ms}ms) to ${n}`); }
+        for (let n = 3; n <= 5; n++) { await swipe(page, cdp, lo, hi, ms); await page.waitForTimeout(700); await expectShowing(page, n, `phone ${w}x${h} swipe(${ms}ms) to ${n}`); }
         await swipe(page, cdp, lo, hi, ms); await page.waitForTimeout(700); await expectShowing(page, 5, `phone ${w}x${h} past the end`);
-        for (let n = 4; n >= 1; n--) { await swipe(page, cdp, hi, lo, ms); await page.waitForTimeout(700); await expectShowing(page, n, `phone ${w}x${h} swipe(${ms}ms) back to ${n}`); }
-        await swipe(page, cdp, hi, lo, ms); await page.waitForTimeout(700); await expectShowing(page, 1, `phone ${w}x${h} past the start`);
+        for (let n = 4; n >= 2; n--) { await swipe(page, cdp, hi, lo, ms); await page.waitForTimeout(700); await expectShowing(page, n, `phone ${w}x${h} swipe(${ms}ms) back to ${n}`); }
+        await swipe(page, cdp, hi, lo, ms); await page.waitForTimeout(700); await expectShowing(page, 2, `phone ${w}x${h} stops at page 2`);
       }
       // holding and moving without letting go, then releasing a short distance away: stays
-      await swipe(page, cdp, lo, lo - 40, 500); await page.waitForTimeout(600); await expectShowing(page, 1, `phone ${w}x${h} short hold`);
+      await swipe(page, cdp, lo, lo - 40, 500); await page.waitForTimeout(600); await expectShowing(page, 2, `phone ${w}x${h} short hold`);
       // two quick swipes in a row (the second during the fade)
       await swipe(page, cdp, lo, hi, 80); await page.waitForTimeout(90); await swipe(page, cdp, lo, hi, 80);
       await page.waitForTimeout(1200);
@@ -186,10 +195,11 @@ for (const [w, h, dpr, motion] of PHONES) {
       await page.setViewportSize({ width: w, height: h }); await page.waitForTimeout(700);
       await expectShowing(page, s2.rm, `phone ${w}x${h} bar hides`);
       const most = await page.evaluate(() => window.__most);
-      // hint + Listen
-      await page.goto(SITE); await page.waitForTimeout(2500);
-      await page.locator('#ames-listen').tap(); await page.waitForTimeout(1500);
-      await expectShowing(page, 2, `phone ${w}x${h} Listen`);
+      // the header goes home, and home moves on again by itself
+      await page.locator('#ames-head').tap(); await page.waitForTimeout(1200);
+      await expectShowing(page, 1, `phone ${w}x${h} header home`);
+      await page.waitForFunction(() => RM.viewerRouter.mag.currentPage.num === 2, null, { timeout: 9000 });
+      await expectShowing(page, 2, `phone ${w}x${h} landing moves on`);
       console.log('MOST', w, h, most, 'ERRS', JSON.stringify(errs));
       expect.soft(most, 'never two pages on screen during swipes').toBe(1);
       expect.soft(errs, 'no script errors').toEqual([]);
@@ -213,7 +223,8 @@ test.describe('webkit phone', () => {
     await page.goto(SITE); await page.waitForTimeout(2500);
     for (let n = 2; n <= 5; n++) { await page.evaluate((n) => window.__amesPaging.goTo(n), n); await page.waitForTimeout(900); await expectShowing(page, n, `${i.project.name} next to ${n}`); }
     await page.locator('#ames-hint-up').click(); await page.waitForTimeout(900); await expectShowing(page, 4, `${i.project.name} up arrow`);
-    for (const n of [1, 3, 5, 2]) { await page.evaluate((n) => window.__amesPaging.goTo(n), n); await page.waitForTimeout(900); await expectShowing(page, n, `${i.project.name} jump to ${n}`); }
+    for (const n of [3, 5, 2]) { await page.evaluate((n) => window.__amesPaging.goTo(n), n); await page.waitForTimeout(900); await expectShowing(page, n, `${i.project.name} jump to ${n}`); }
+    await page.locator('#ames-head').click(); await page.waitForTimeout(1200); await expectShowing(page, 1, `${i.project.name} header home`);
     console.log('ERRS', i.project.name, JSON.stringify(errs));
     expect.soft(errs, 'no script errors').toEqual([]);
   });

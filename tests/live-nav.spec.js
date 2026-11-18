@@ -47,9 +47,10 @@ test.describe('phone', () => {
     await expect(page).toHaveURL(/\/2\/?$/, { timeout: 3000 });
     await page.waitForTimeout(600);
     expect(Math.abs((await page.evaluate(() => scrollY)) - H), 'lands exactly on page 2').toBeLessThan(3);
-    // long drag down: back to page 1
+    // long drag down: page 2 is the top
     await drag(page, 300, 400);
-    await expect(page).toHaveURL(/amesharding\.com\/?$/, { timeout: 3000 });
+    await page.waitForTimeout(900);
+    await expect(page).toHaveURL(/\/2\/?$/);
   });
 });
 

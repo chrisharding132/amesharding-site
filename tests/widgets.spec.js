@@ -203,7 +203,7 @@ test('copied clips play from GitHub, anything else falls back to Dropbox', async
   expect((await page.request.get('/src/audio/Hummin-Intro-140BPM.mp3')).status()).toBe(200);
 });
 
-test('tapping a light shows loading then playing, and the now-playing bar appears away from the player', async ({ page }) => {
+test('tapping a light shows loading then playing, and the corner play button appears away from the player', async ({ page }) => {
   await page.goto('/tests/harness.html');
   await expect(page.locator('#ames-mb .ames-light')).toHaveCount(3);
   const light = page.locator('#ames-mb .ames-light').nth(1);
@@ -213,10 +213,15 @@ test('tapping a light shows loading then playing, and the now-playing bar appear
   await expect(page.locator('#ames-mini')).not.toHaveClass(/\bon\b/);           // full player visible: no bar
   await page.evaluate(() => { document.getElementById('w-pl').style.left = '-2000px'; });   // full player off-screen
   await expect(page.locator('#ames-mini')).toHaveClass(/\bon\b/, { timeout: 2000 });
-  await expect(page.locator('#ames-mini .t')).toContainText('Two');
+  // just one round play/pause button in the bottom-left corner, no track details
+  const btn = await page.locator('#ames-mini .p').boundingBox();
+  expect(btn.x, 'bottom-left').toBeLessThan(40);
+  expect(await page.locator('#ames-mini .t').isVisible(), 'no title').toBe(false);
   await page.locator('#ames-mini .p').click();                            // pause
   await expect(page.locator('#ames-mini')).not.toHaveClass(/playing/);
-  await page.locator('#ames-mini .x').click();                                    // stop
+  await page.locator('#ames-mini .p').click();                            // play again
+  await expect(page.locator('#ames-mini')).toHaveClass(/playing/);
+  await page.evaluate(() => window.__amesPlayer.stop());
   await expect(page.locator('#ames-mini')).not.toHaveClass(/\bon\b/);
   await expect(light).not.toHaveClass(/playing/);
 });

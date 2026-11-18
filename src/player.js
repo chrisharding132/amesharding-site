@@ -44,22 +44,16 @@
     '#ames-player.active .ames-play,#ames-player.active .ames-skip{display:flex;}',
     '.ames-sr{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}',
     '@keyframes ames-spin{to{transform:rotate(360deg)}}',
-    // now-playing bar: every page except the one showing the full player
-    "#ames-mini{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));z-index:10002;transform:translate(-50%,20px);opacity:0;pointer-events:none;",
-    "  display:flex;align-items:center;gap:12px;max-width:min(520px,calc(100vw - 28px));padding:8px 10px 8px 14px;border-radius:999px;box-sizing:border-box;",
-    "  background:rgba(52,48,96,.5);-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3);border:1px solid rgba(240,232,218,.18);",
-    "  font-family:'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;transition:opacity .35s ease,transform .35s ease;}",
-    '#ames-mini.on{opacity:1;transform:translate(-50%,0);pointer-events:auto;}',
-    '#ames-mini .dot{width:8px;height:8px;border-radius:50%;flex:none;background:#E85D75;box-shadow:0 0 10px rgba(232,93,117,.9);}',
-    '#ames-mini.playing .dot{animation:ames-pulse 1.6s ease-in-out infinite;}',
-    '@keyframes ames-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.6);opacity:.55}}',
-    '#ames-mini .t{flex:1;min-width:0;border:0;background:none;padding:0;text-align:left;cursor:pointer;color:#F0E8DA;font:300 12px/1.2 inherit;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
-    '#ames-mini .t small{display:block;color:rgba(240,232,218,.55);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;margin-top:2px;}',
-    '#ames-mini button.b{flex:none;display:flex;align-items:center;justify-content:center;padding:0;width:36px;height:36px;border-radius:50%;border:0;cursor:pointer;color:#F0E8DA;background:rgba(240,232,218,.1);font-size:13px;}',
-    '#ames-mini button.b svg{width:13px;height:13px;fill:currentColor;}',
-    '#ames-mini button.n{background:none;width:30px;}',
-    '#ames-mini button.x{background:none;width:30px;color:rgba(240,232,218,.6);}',
-    '@media (prefers-reduced-motion:reduce){#ames-mini.playing .dot{animation:none}}',
+    // away from the full player: one round play/pause button in the bottom-left corner, nothing else
+    "#ames-mini{position:fixed;left:calc(16px + env(safe-area-inset-left));bottom:calc(16px + env(safe-area-inset-bottom));z-index:10002;opacity:0;pointer-events:none;transform:scale(.85);",
+    "  transition:opacity .3s ease,transform .3s ease;}",
+    '#ames-mini.on{opacity:1;transform:none;pointer-events:auto;}',
+    '#ames-mini .dot,#ames-mini .t,#ames-mini .n,#ames-mini .x{display:none!important;}',
+    "#ames-mini button.p{display:flex;align-items:center;justify-content:center;width:46px;height:46px;padding:0;border-radius:50%;cursor:pointer;color:#F0E8DA;",
+    "  background:rgba(52,48,96,.5);-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3);border:1px solid rgba(240,232,218,.22);}",
+    '#ames-mini button.p svg{width:14px;height:14px;fill:currentColor;}',
+    '#ames-mini button.p:focus-visible{outline:1px solid #F0E8DA;outline-offset:3px;}',
+    '@media (hover:hover){#ames-mini button.p:hover{background:rgba(232,93,117,.35);}}',
     // desktop idle prompt: centred on the whole player, not just the middle column
     '#ames-player:not(.active) .ames-idle{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;}',
     '.ames-prompting #ames-player .ames-idle{visibility:hidden;}'
@@ -403,7 +397,7 @@
     }
     var b = mini.querySelector('.p'), want = playing() ? 'pause' : 'play';
     if (b.dataset.icon !== want) { b.dataset.icon = want; b.innerHTML = ICON[want]; b.setAttribute('aria-label', playing() ? 'Pause' : 'Play'); }
-    fitAboveBar(show);
+    fitAboveBar(false);                      // the corner button covers nothing: no page needs to make room
   }
   // The bar must not cover page content: if the current page's content reaches under it, ease that page's
   // content up-and-smaller just enough to clear the bar; restored when the bar goes away or the page changes.

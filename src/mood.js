@@ -35,16 +35,19 @@
     "#ames-mb .ames-empty{position:absolute;left:50%;top:68%;transform:translate(-50%,-50%);z-index:6;display:none;flex-direction:column;align-items:center;gap:10px;color:#F0E8DA;text-align:center;",
     "  font:300 11px/1.3 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.2em;text-transform:uppercase;white-space:nowrap;}",
     '#ames-mb .ames-empty.on{display:flex;}',
-    // first visit: a quiet prompt inside the map (never over a light: it sits wherever the map is emptiest, under the lights)
-    "#ames-mb .ames-prompt{position:absolute;left:50%;transform:translate(-50%,-50%);z-index:1;pointer-events:none;white-space:nowrap;padding:7px 14px;border-radius:999px;opacity:0;transition:opacity .6s ease;",
-    "  background:rgba(52,48,96,.32);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(240,232,218,.16);color:rgba(240,232,218,.85);",
-    "  font:300 10px/1 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.22em;text-transform:uppercase;}",
-    '#ames-mb .ames-stage.on .ames-prompt.on{opacity:1;}',
-    // the light to start with: a soft ring keeps opening around it until anything has been played
-    '#ames-mb .ames-light.ames-start::before{content:"";position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;pointer-events:none;',
-    '  border:1px solid rgba(240,232,218,.7);animation:ames-ring 2.4s ease-out infinite;}',
-    '@keyframes ames-ring{0%{transform:scale(.6);opacity:0}25%{opacity:.9}100%{transform:scale(1.9);opacity:0}}',
-    '@media (prefers-reduced-motion:reduce){#ames-mb .ames-light.ames-start::before{animation:none;transform:scale(1.2);opacity:.6;}}',
+    // first visit: "Tap to listen" in handwriting, with a hand-drawn arrow to the light to start with
+    '#ames-mb .ames-cue{position:absolute;left:0;top:0;width:100%;height:100%;z-index:1;pointer-events:none;opacity:0;transition:opacity .7s ease;}',
+    '#ames-mb .ames-stage.on .ames-cue.on{opacity:1;}',
+    "#ames-mb .ames-cue span{position:absolute;white-space:nowrap;color:#F0E8DA;font:400 27px/1 'Nanum Pen Script','Bradley Hand','Segoe Print',cursive;letter-spacing:.01em;text-shadow:0 0 14px rgba(52,48,96,.6);}",
+    '#ames-mb .ames-cue svg{position:absolute;left:0;top:0;overflow:visible;}',
+    '#ames-mb .ames-cue path{fill:none;stroke:#F0E8DA;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}',
+    // the light to start with: rings keep radiating out from it until anything has been played
+    '#ames-mb .ames-light.ames-start::before,#ames-mb .ames-light.ames-start:not(.playing)::after{content:"";position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;pointer-events:none;',
+    '  border:1.5px solid rgba(240,232,218,.95);box-shadow:0 0 10px rgba(236,182,146,.55);background:none;-webkit-mask-image:none;mask-image:none;',
+    '  animation:ames-ring 2s cubic-bezier(.2,.6,.3,1) infinite;}',
+    '#ames-mb .ames-light.ames-start:not(.playing)::after{animation-delay:1s;}',
+    '@keyframes ames-ring{0%{transform:scale(.7);opacity:0}12%{opacity:.95}100%{transform:scale(3.1);opacity:0}}',
+    '@media (prefers-reduced-motion:reduce){#ames-mb .ames-light.ames-start::before,#ames-mb .ames-light.ames-start:not(.playing)::after{animation-duration:2.8s;}#ames-mb .ames-light.ames-start:not(.playing)::after{animation-delay:1.4s;}}',
     "#ames-mb .ames-empty button{font:inherit;letter-spacing:.14em;text-transform:uppercase;color:#F0E8DA;cursor:pointer;background:rgba(240,232,218,.08);border:1px solid rgba(240,232,218,.35);border-radius:999px;padding:8px 18px;}",
     // playing: a soft, grainy halo that breathes (grain = the same fractal-noise texture as the page)
     '#ames-mb .ames-light::after{content:"";position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px 0 0 -35px;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .6s ease;',
@@ -128,6 +131,15 @@
     st.id = 'ames-mb-css';
     st.textContent = CSS;
     document.head.appendChild(st);
+    // the handwriting for "Tap to listen" (a complete alphabet: Readymag's own handwriting fonts only carry the
+    // letters the site uses). Loaded so it never holds up the page: as print-only, switched on once it arrives.
+    var hand = document.createElement('link');
+    hand.rel = 'stylesheet'; hand.media = 'print'; hand.href = 'https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap';
+    hand.onload = function () {
+      hand.media = 'all';
+      if (document.fonts && document.fonts.load) document.fonts.load("27px 'Nanum Pen Script'", 'Tap to listen Click').then(function () { S.boxes.forEach(layout); }, function () {});
+    };
+    document.head.appendChild(hand);
 
     window.addEventListener('message', function (e) {
       var d = e.data;
@@ -135,6 +147,10 @@
       if (d && d.amesPlayerSize) S.boxes.forEach(function (b) { layout(b); reveal(b); });
       if (d && (d.amesPlayerState === 'loading' || d.amesPlayerState === 'playing') && !S.played) markPlayed();   // even before the map is on screen
       if (d && d.amesPlayerState) S.boxes.forEach(function (b) { showState(b, d.amesPlayerState, d.src); });
+      if (d && d.amesArrived) S.boxes.forEach(function (b) {
+        var pg = b.closest('.page'), n = pg ? Array.prototype.indexOf.call(document.querySelectorAll('.mag .page'), pg) + 1 : 0;
+        if (n === d.amesArrived) setTimeout(function () { ripple(b); }, 150);
+      });
       if (d && d.amesShowTip) S.boxes.forEach(function (b) {
         var l = (b._lights || []).filter(function (x) { return x.t.src === d.amesShowTip; })[0];
         if (!l) return;
@@ -187,7 +203,7 @@
     try { localStorage.setItem(PLAYED, '1'); } catch (e) {}
     document.documentElement.classList.remove('ames-prompting');
     S.boxes.forEach(function (b) {
-      if (b._prompt) b._prompt.classList.remove('on');
+      if (b._cue) b._cue.classList.remove('on');
       Array.prototype.forEach.call(b.querySelectorAll('.ames-start'), function (el) { el.classList.remove('ames-start'); });
     });
   }
@@ -233,8 +249,8 @@
     var c = box.closest('.page-content-container'), z = c && parseFloat(getComputedStyle(c).zoom) || 1;
     var s = Math.abs(b.height - box.offsetHeight) < 2 ? z : 1;
     return {
-      top: Math.max(0, (b.top - pt - 26 / s) / k),
-      bottom: Math.max(0, (Math.min(r.top - pageTop(pl), innerHeight / s) - 18 / s - (b.bottom - pt)) / k)
+      top: Math.max(0, (b.top - pt - (window.__amesHeadBottom || 26) / s) / k),
+      bottom: Math.max(0, (Math.min(r.top - pageTop(pl), innerHeight / s) - 58 / s - (b.bottom - pt)) / k)
     };
   }
 
@@ -305,27 +321,7 @@
       l.el.style.top = (pts[i].y / H * 100).toFixed(2) + '%';
     });
     box._layout = { W: W, H: H, HB: HB, x0: x0, x1: x1, y0: y0, y1: y1, D: D };
-    if (box._prompt) {
-      // Phones: the strip between DARK and the player stays empty until the first song (that is what the open player
-      // later covers), so the prompt sits there. Wide screens: the emptiest spot among the lights, nearest the middle.
-      var pw = 210, ph = 30, best = null, words = obstacles.concat([rect(L.top), rect(L.bottom)]);
-      var below = portrait ? (Math.min(HB, H + (HB - H)) + rect(L.bottom)[3]) / 2 : 0;
-      if (portrait && HB - rect(L.bottom)[3] > ph + 16) best = { n: 0, x: W / 2, y: below };
-      for (var cy = y0; !best || best.n > 0 && cy <= y1; cy += 8) for (var cx = x0 + pw / 2; cx <= x1 - pw / 2; cx += 12) {
-        if (best && best.n === 0 && portrait) break;
-        var n = pts.reduce(function (m, p) {
-          var dx = Math.max(0, Math.abs(p.x - cx) - pw / 2), dy = Math.max(0, Math.abs(p.y - cy) - ph / 2);
-          return m + Math.max(0, R + drift + 6 - Math.sqrt(dx * dx + dy * dy));
-        }, 0) + (words.some(function (o) { return cx + pw / 2 > o[0] && cx - pw / 2 < o[2] && cy + ph / 2 > o[1] && cy - ph / 2 < o[3]; }) ? 1e3 : 0)
-          + Math.abs(cx - W / 2) * 0.02 + Math.abs(cy - (y0 + y1) / 2) * 0.01;
-        if (!best || n < best.n) best = { n: n, x: cx, y: cy };
-      }
-      box._prompt.style.left = best.x.toFixed(1) + 'px';
-      box._prompt.style.top = best.y.toFixed(1) + 'px';
-      var on = !hasPlayed();
-      box._prompt.classList.toggle('on', on);
-      document.documentElement.classList.toggle('ames-prompting', on);
-    }
+    if (box._cue) cue(box, pts, obstacles.concat([rect(L.top), rect(L.bottom)]), W, H, x0, x1, y0, y1, drift);
   }
 
   // Fade the map in once: tracks placed, the visible label image decoded, and the player measured
@@ -440,12 +436,12 @@
     box.setAttribute('aria-label', 'Mood map of tracks, from organic to electronic and dark to light');
     box.innerHTML = '<div class="ames-stage">' +
       '<div class="ames-empty" role="status"><span>No tracks match</span><button type="button">Clear</button></div>' +
-      '<div class="ames-prompt" aria-hidden="true">' + (matchMedia('(hover: none)').matches ? 'Tap' : 'Click') + ' a light to listen</div>' +
+      '<div class="ames-cue" aria-hidden="true"><svg><path/></svg><span>' + (matchMedia('(hover: none)').matches ? 'Tap' : 'Click') + ' to listen</span></div>' +
       '<img class="ames-labels l" alt="" data-src="' + BASE + 'assets/labels-landscape-v2.png">' +
       '<img class="ames-labels p" alt="" data-src="' + BASE + 'assets/labels-portrait-v2.png"></div>';
     box._stage = box.firstChild;
     box._empty = box.querySelector('.ames-empty');
-    box._prompt = box.querySelector('.ames-prompt');
+    box._cue = box.querySelector('.ames-cue');
     box._empty.querySelector('button').addEventListener('click', function () { window.postMessage({ amesClearFilters: true }, '*'); });
     Array.prototype.forEach.call(box.querySelectorAll('img'), function (im) { im.addEventListener('load', function () { reveal(box); }); });
     setTimeout(function () { reveal(box); }, 1600);
@@ -460,20 +456,58 @@
     }, { threshold: [0, 0.5, 1] }).observe(box);
   }
 
-  // Once per visit, when the map comes into view: a brightening sweeps across the lights, left to right,
-  // so they read as things to touch. Waits for the map to have faded in.
+  // "Tap to listen" goes in the emptiest spot of the map's top-right area, a comfortable arrow's length from the
+  // light to start with; the arrow is drawn freshly each layout, curving from the words to just short of the light.
+  function cue(box, pts, words, W, H, x0, x1, y0, y1, drift) {
+    var el = box._cue, on = !hasPlayed(), fi = -1;
+    (box._lights || []).forEach(function (l, i) { if (fi < 0 && FEATURED.test(l.t.title)) fi = i; });
+    el.classList.toggle('on', on && fi >= 0);
+    document.documentElement.classList.toggle('ames-prompting', on && fi >= 0);
+    if (!on || fi < 0) return;
+    var span = el.querySelector('span'), tw = span.offsetWidth || 120, th = span.offsetHeight || 24, L = pts[fi], best = null;
+    for (var ty = y0; ty <= y0 + (y1 - y0) * 0.45; ty += 6) for (var tx = x1 - tw; tx >= x0 + (x1 - x0) * 0.35; tx -= 8) {
+      var cx = Math.max(tx, Math.min(L.x, tx + tw)), cy = Math.max(ty, Math.min(L.y, ty + th)), d = Math.hypot(L.x - cx, L.y - cy);
+      var n = pts.reduce(function (m, p) {
+        var dx = Math.max(0, Math.max(tx - p.x, p.x - (tx + tw))), dy = Math.max(0, Math.max(ty - p.y, p.y - (ty + th)));
+        return m + Math.max(0, R + drift + 8 - Math.hypot(dx, dy)) * 3;
+      }, 0)
+        + (words.some(function (o) { return tx + tw > o[0] - 6 && tx < o[2] + 6 && ty + th > o[1] - 6 && ty < o[3] + 6; }) ? 1e4 : 0)
+        + (d < 60 ? (60 - d) * 6 : 0) + (d > 230 ? (d - 230) * 0.6 : 0)
+        + (x1 - (tx + tw)) * 0.05 + (ty - y0) * 0.05;          // nearest the top-right corner
+      if (!best || n < best.n) best = { n: n, x: tx, y: ty };
+    }
+    if (!best) { el.classList.remove('on'); document.documentElement.classList.remove('ames-prompting'); return; }   // no room for it
+    span.style.left = best.x.toFixed(1) + 'px'; span.style.top = best.y.toFixed(1) + 'px';
+    // from the edge of the words nearest the light, curving, to 24px short of it
+    var sx = Math.max(best.x, Math.min(L.x, best.x + tw)), sy = Math.max(best.y + th * 0.5, Math.min(L.y, best.y + th + 4));
+    if (sx > best.x && sx < best.x + tw) sy = L.y > best.y ? best.y + th + 6 : best.y - 6; else sx += sx <= best.x ? -8 : 8;
+    var dx = L.x - sx, dy = L.y - sy, len = Math.hypot(dx, dy) || 1, ex = L.x - dx / len * 24, ey = L.y - dy / len * 24;
+    var bend = (dx > 0 ? -1 : 1) * Math.min(60, len * 0.28), qx = (sx + ex) / 2 - dy / len * bend, qy = (sy + ey) / 2 + dx / len * bend;
+    var a = Math.atan2(ey - qy, ex - qx), h = 10;
+    var hx1 = ex - h * Math.cos(a - 0.5), hy1 = ey - h * Math.sin(a - 0.5), hx2 = ex - h * Math.cos(a + 0.5), hy2 = ey - h * Math.sin(a + 0.5);
+    var f = function (v) { return v.toFixed(1); };
+    el.querySelector('svg').setAttribute('width', W); el.querySelector('svg').setAttribute('height', H);
+    el.querySelector('path').setAttribute('d', 'M' + f(sx) + ' ' + f(sy) + ' Q' + f(qx) + ' ' + f(qy) + ' ' + f(ex) + ' ' + f(ey) +
+      ' M' + f(hx1) + ' ' + f(hy1) + ' L' + f(ex) + ' ' + f(ey) + ' L' + f(hx2) + ' ' + f(hy2));
+    box._cueAt = { x: best.x, y: best.y, w: tw, h: th, light: [L.x, L.y] };
+  }
+
+  // Every time the map page arrives (at most every 8s): a brightening sweeps across the lights, left to right,
+  // so they read as things to touch. With Reduce Motion it is a glow without the swell.
   function ripple(box) {
-    if (S.rippled || !box._lights || !box._lights.length) return;
+    if (!box._lights || !box._lights.length || Date.now() - (S.rippledAt || 0) < 8000) return;
     if (!box._stage.classList.contains('on')) { clearTimeout(box._rip); box._rip = setTimeout(function () { ripple(box); }, 300); return; }
-    S.rippled = true;
+    S.rippledAt = Date.now();
+    S.ripples = (S.ripples || 0) + 1;
     var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     var ls = box._lights.slice().sort(function (a, b) { return parseFloat(a.el.style.left) - parseFloat(b.el.style.left); });
-    var step = Math.min(45, 1300 / ls.length);
+    var step = Math.min(45, 1300 / ls.length), glow = 'brightness(2.3) drop-shadow(0 0 6px rgba(236,182,146,.9))', rest = 'brightness(1) drop-shadow(0 0 0 rgba(236,182,146,0))';
     ls.forEach(function (l, i) {
       if (!l.el.animate) return;
-      l.el.animate(reduce ? [{ filter: 'brightness(1)' }, { filter: 'brightness(1.9)', offset: 0.4 }, { filter: 'brightness(1)' }]
-        : [{ filter: 'brightness(1)', scale: '1' }, { filter: 'brightness(2)', scale: '1.3', offset: 0.35 }, { filter: 'brightness(1)', scale: '1' }],
-        { duration: 760, delay: 250 + i * step, easing: 'ease-out' });
+      var base = l.el.classList.contains('hid') ? ' grayscale(1)' : '';
+      l.el.animate(reduce ? [{ filter: rest + base }, { filter: glow + base, offset: 0.4 }, { filter: rest + base }]
+        : [{ filter: rest + base, scale: '1' }, { filter: glow + base, scale: '1.4', offset: 0.35 }, { filter: rest + base, scale: '1' }],
+        { duration: 820, delay: 200 + i * step, easing: 'ease-out' });
     });
   }
 

@@ -39,13 +39,11 @@
     "  font:300 10px/1 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.2em;text-transform:uppercase;text-shadow:0 0 12px rgba(52,48,96,.8);}",
     'html:not(.isphone) #ames-rail button:hover span,html:not(.isphone) #ames-rail button:focus-visible span{opacity:1;transform:translate(0,-50%);}',
     'html:not(.isphone) #ames-rail button:focus-visible{outline:1px solid rgba(240,232,218,.7);outline-offset:-2px;border-radius:3px;}',
-    // landing page: Listen
-    "#ames-listen{position:absolute;left:50%;transform:translateX(-50%);z-index:50;display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:999px;cursor:pointer;color:#F0E8DA;white-space:nowrap;opacity:0;visibility:hidden;",
-    "  background:rgba(52,48,96,.28);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid rgba(240,232,218,.35);transition:background .25s ease,border-color .25s ease,opacity .4s ease;",
-    "  font:300 9.5px/1 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.24em;text-transform:uppercase;}",
-    '#ames-listen.on{opacity:1;visibility:visible;}',
-    '#ames-listen:hover,#ames-listen:focus-visible{background:rgba(232,93,117,.35);border-color:rgba(240,232,218,.6);outline:none;}',
-    '#ames-listen svg{width:9px;height:9px;fill:currentColor;}',
+    // pages 2 onwards: the name, small, at the top (it travels there from page 1); tapping it goes home
+    '#ames-head{position:fixed;top:0;left:0;z-index:10001;padding:0;border:0;background:none;cursor:pointer;opacity:0;pointer-events:none;transform-origin:0 0;transition:opacity .25s ease;}',
+    '#ames-head.on{opacity:1;pointer-events:auto;}',
+    '#ames-head img{position:absolute;display:block;max-width:none;pointer-events:none;}',
+    '#ames-head:focus-visible{outline:1px solid rgba(240,232,218,.7);outline-offset:4px;border-radius:3px;}',
     // moving photos: held while pointed at or pressed
     '.page.ames-hold .animation-container{animation-play-state:paused!important;}',
     // quotes read better left-aligned than justified (wide gaps on phones)
@@ -80,14 +78,13 @@
     "  font:300 11px/46px 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif!important;letter-spacing:.26em!important;text-transform:uppercase;}",
     '.widget-form .button:hover,.widget-form .button:focus-visible{background:rgba(232,93,117,.35)!important;outline:none;}',
     '.widget-form .button svg{fill:#F0E8DA!important;}',
-    // hints: a down arrow on page 1 until someone first moves on, an up arrow on the last page until someone goes back up
+    // hints: a down arrow on page 2 (just above the player) and an up arrow on the last page, every visit
     ".ames-hint{position:fixed;left:50%;transform:translateX(-50%);z-index:10000;",
     "  display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 14px;border:0;background:none;cursor:pointer;",
     "  font:300 10px/1 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;",
     '  letter-spacing:.24em;text-transform:uppercase;color:rgba(240,232,218,.8);text-shadow:0 0 10px rgba(52,48,96,.6);',
     '  transition:opacity .5s ease;}',
-    '#ames-hint{bottom:calc(16px + env(safe-area-inset-bottom));}',
-    '#ames-hint-up{top:calc(12px + env(safe-area-inset-top));}',
+    '.ames-hint{bottom:calc(14px + env(safe-area-inset-bottom));}',
     '.ames-hint svg{width:14px;height:14px;}',
     '#ames-hint svg{animation:ames-bob-down 1.8s ease-in-out infinite;}',
     '#ames-hint-up svg{animation:ames-bob-up 1.8s ease-in-out infinite;}',
@@ -184,7 +181,7 @@
   linkEmail();
 
   // ---- zoom recovery (Chrome on iOS can stay zoomed in, e.g. after a form field took focus) ----
-  function zoomed() { return !!(window.visualViewport && visualViewport.scale > 1.02); }
+  function zoomed() { return !!(window.visualViewport && visualViewport.scale > 1.1); }
   function resetZoom() {
     if (!isPhone() || !zoomed()) return;
     var f = document.activeElement;
@@ -305,9 +302,11 @@
       c.style.translate = ''; c.style.opacity = '';
       if (!reduce) play(c, [{ translate: from, opacity: c.style.opacity || 0.85 }, { translate: '0 0', opacity: 1 }], 220, 'cubic-bezier(.2,.8,.2,1)').then(function (an) { if (an && an.cancel) an.cancel(); });
     }
-    function go(i) {
+    function go(i, home) {
       i = Math.max(0, Math.min(count() - 1, i));
-      if (i === cur || busy) { unlean(); return; }
+      if (i === cur || busy || (i === 0 && !home)) { unlean(); return; }
+      if (cur === 0) head.show(true); else if (i === 0) head.hide(true);
+      clearTimeout(autoT);
       var dir = i > cur ? 1 : -1, from = contentOf(cur), lean0 = from && from.style.translate || '0 0';
       busy = true;
       dbg.last = Object.assign(dbg.last || {}, { go: i + 1 });
@@ -322,33 +321,40 @@
         return ready(i).then(function () {
           return play(to, [{ translate: '0 ' + (reduce ? 0 : dir * 36) + 'px', opacity: 0 }, { translate: '0 0', opacity: 1 }], reduce ? 160 : 380, 'cubic-bezier(.2,.8,.2,1)');
         }).then(function (b) { if (to) to.style.opacity = ''; if (b && b.cancel) b.cancel(); });
-      }).then(function () { busy = false; holdSlot(i); warm(i); }, function () { var c = contentOf(cur); if (c) c.style.opacity = ''; busy = false; settle(cur); });
+      }).then(function () { busy = false; holdSlot(i); warm(i); arrived(i); }, function () { var c = contentOf(cur); if (c) c.style.opacity = ''; busy = false; settle(cur); });
     }
     // the pages either side get their photos ready ahead of time
     function warm(i) { [i - 1, i + 1].forEach(function (j) { if (j >= 0 && j < count()) ready(j); });
     }
-    function goTo(n) {   // 1-based page number, used by the hints, the rail, Listen and the now-playing bar
+    function goTo(n, home) {   // 1-based page number, used by the header, hints, rail and the corner play button
       n = Math.max(1, Math.min(count(), n));
-      if (vertical()) { fitHeight(); return go(n - 1); }
+      if (n === 1 && !home) return;
+      if (vertical()) { fitHeight(); return go(n - 1, home); }
       // more than one page away (the rail): straight there, without flashing the pages in between
-      if (Math.abs(n - 1 - curIdx()) > 1 && typeof mag.showPage === 'function' && performance.now() - lastTurn > 560) {
+      if ((Math.abs(n - 1 - curIdx()) > 1 || n === 1) && typeof mag.showPage === 'function' && performance.now() - lastTurn > 560) {
         lastTurn = performance.now();
         try { mag.showPage(n); return; } catch (e) {}
       }
+      // exactly as many steps as it is away; anything the visitor does (scroll, keys) cancels what is left
+      var token = ++goToken, left = Math.abs(n - 1 - curIdx()), dir = n - 1 > curIdx() ? 1 : -1;
       (function step() {
-        var at = curIdx();
-        if (at === n - 1) return;
-        turn(at < n - 1 ? 1 : -1);
+        if (token !== goToken || !left || curIdx() === n - 1) return;
+        left--;
+        turn.home = !!home;
+        turn(dir);
+        turn.home = false;
         setTimeout(step, 640);
       })();
     }
     // Readymag ignores a page change asked for during its 520ms transition, and on a heavy page the change itself
     // can land late: asking again too soon then moves two pages. So a change waits until the last one has had its
     // 520ms, is asked for once, and is only asked for again if, well after that, nothing has moved.
-    var turnT, lastTurn = 0;
+    var turnT, lastTurn = 0, goToken = 0;
+    window.addEventListener('keydown', function (e) { if (/^(Arrow|Page|Home|End| )/.test(e.key)) goToken++; }, true);
     function turn(dir) {
       clearTimeout(turnT);
       var from = curIdx();
+      if (dir < 0 && from === 1 && !turn.home) return;   // page 2 is the top while scrolling
       (function ask(tries) {
         if (curIdx() !== from) return;                 // it moved
         if (dir > 0 ? mag.isLastPage() : mag.isFirstPage()) return;
@@ -361,6 +367,130 @@
     }
     dbg.goTo = goTo;
     dbg.cur = function () { return cur + 1; };
+    function here() { return vertical() ? cur : curIdx(); }
+    // the map (and anything else) hears when a page has fully arrived
+    function arrived(i) { window.postMessage({ amesArrived: i + 1 }, '*'); if (i === 0) arm(); }
+
+    // Page 1 is the landing page: after 4s it moves on to the mood map by itself (a swipe or scroll goes at once).
+    // Touching the page, or the tab being in the background, restarts the wait.
+    var autoT;
+    function arm() {
+      clearTimeout(autoT);
+      if (here() !== 0) return;
+      autoT = setTimeout(function () {
+        if (document.hidden || here() !== 0) return arm();
+        goTo(2);
+      }, 4000);
+    }
+    dbg.arm = arm;
+    document.addEventListener('pointerdown', function () { if (here() === 0) arm(); }, true);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) arm(); });
+
+    // ---- the header: the page-1 name, small, at the top of every other page ----
+    var head = document.createElement('button');
+    head.id = 'ames-head'; head.type = 'button'; head.setAttribute('aria-label', 'Ames Harding — home');
+    head.addEventListener('click', function () { goTo(1, true); });
+    document.body.appendChild(head);
+    // a box in screen pixels (desktop measures inside the zoomed page in unzoomed units)
+    function scr(el) {
+      var r = el.getBoundingClientRect(), c = el.closest && el.closest('.page-content-container');
+      var z = c ? parseFloat(getComputedStyle(c).zoom) || 1 : 1, k = Math.abs(r.width - el.offsetWidth) < 2 ? z : 1;
+      return { left: r.left * k, top: r.top * k, width: r.width * k, height: r.height * k };
+    }
+    // the name's pictures on page 1, relative to page 1 as if it were on screen
+    function logo() {
+      var page = pageEls()[0];
+      if (!page) return null;
+      var pr = page.getBoundingClientRect(), parts = [];
+      Array.prototype.forEach.call(page.querySelectorAll('.rmwidget.widget-picture'), function (w) {
+        var im = w.querySelector('img'), r = scr(w);
+        if (im && im.currentSrc && r.height > 4) parts.push({ src: im.currentSrc, x: r.left - pr.left, y: r.top - pr.top, w: r.width, h: r.height });
+      });
+      if (!parts.length) return null;
+      var x0 = Math.min.apply(null, parts.map(function (q) { return q.x; })), y0 = Math.min.apply(null, parts.map(function (q) { return q.y; }));
+      var x1 = Math.max.apply(null, parts.map(function (q) { return q.x + q.w; })), y1 = Math.max.apply(null, parts.map(function (q) { return q.y + q.h; }));
+      return { parts: parts, x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    }
+    var headBox = null;
+    head.build = function () {
+      var L = logo();
+      if (!L) return false;
+      var hh = isPhone() ? 34 : 38, f = hh / L.h, w = L.w * f, top = 12 + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ames-safe-top')) || 0);
+      var sig = L.parts.map(function (q) { return q.src; }).join('|') + Math.round(w) + 'x' + innerWidth;
+      if (head.dataset.sig !== sig) {
+        head.dataset.sig = sig;
+        head.innerHTML = '';
+        L.parts.forEach(function (q) {
+          var im = document.createElement('img'); im.alt = ''; im.src = q.src;
+          im.style.cssText = 'left:' + ((q.x - L.x) * f).toFixed(1) + 'px;top:' + ((q.y - L.y) * f).toFixed(1) + 'px;width:' + (q.w * f).toFixed(1) + 'px;height:' + (q.h * f).toFixed(1) + 'px;';
+          head.appendChild(im);
+        });
+      }
+      headBox = { x: (innerWidth - w) / 2, y: top, w: w, h: hh, f: f, L: L };
+      head.style.left = headBox.x.toFixed(1) + 'px'; head.style.top = headBox.y.toFixed(1) + 'px';
+      head.style.width = w.toFixed(1) + 'px'; head.style.height = hh + 'px';
+      window.__amesHeadBottom = top + hh + 8;
+      return true;
+    };
+    // from the name's place on page 1 up into the header (or back down when going home)
+    function flip(up) {
+      if (!head.build() || !head.animate) return;
+      var L = headBox.L, k = 1 / headBox.f, dx = L.x - headBox.x, dy = L.y - headBox.y;
+      var big = { transform: 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) scale(' + k.toFixed(3) + ')' }, small = { transform: 'none' };
+      return head.animate(up ? [big, small] : [small, big], { duration: reduce ? 1 : 620, easing: 'cubic-bezier(.3,.7,.2,1)' });
+    }
+    head.show = function (animate) {
+      if (!head.build()) return;
+      head.classList.add('on');
+      if (animate) flip(true);
+      fitAll();
+    };
+    head.hide = function (animate) {
+      var an = animate && head.classList.contains('on') ? flip(false) : null;
+      if (an && an.finished) an.finished.then(function () { if (here() === 0) head.classList.remove('on'); }, function () {});
+      else head.classList.remove('on');
+    };
+    dbg.head = head;
+    // Phones: pages 2 onwards make room for the header. Their content eases down-and-smaller just enough to clear it,
+    // keeping its bottom where it was (the player stays on the bottom edge). Moving photo strips are left out.
+    function fitBelow(pg) {
+      var b = pg.querySelector('.content-bounds'), pr = pg.getBoundingClientRect();
+      if (!b || !pr.height) return;
+      var old = b.dataset.fit ? b.dataset.fit.split(',').map(Number) : [1, 0], s0 = old[0], t0 = old[1], top = Infinity, low = 0;
+      Array.prototype.forEach.call(pg.querySelectorAll('.rmwidget'), function (w) {
+        if (w.classList.contains('widget-background') || w.closest('.page-fixed-bg-container')) return;
+        var mover = w.closest('.animation-container');
+        if (mover && getComputedStyle(mover).animationName !== 'none') return;
+        var r = w.getBoundingClientRect();
+        if (r.height < 2 || r.width < 2) return;
+        top = Math.min(top, ((r.top - pr.top) - t0) / s0);
+        low = Math.max(low, ((r.bottom - pr.top) - t0) / s0);
+      });
+      if (!isFinite(top)) return;
+      // ...and the corner play button at the bottom, while it shows
+      var mini = document.getElementById('ames-mini'), room = mini && mini.classList.contains('on') ? innerHeight - mini.getBoundingClientRect().top + 8 : 0;
+      var hb = window.__amesHeadBottom || 0, bottom = Math.min(low, innerHeight - room), s = 1, t = 0;
+      if (top < hb || low > bottom) {
+        // the content's top lands at the header's bottom (or stays put if already below it), its bottom above the button
+        var A = Math.max(hb, top);
+        s = Math.max(0.74, Math.min(1, (bottom - A) / (low - top)));
+        t = A - top * s;
+      }
+      var sig = s.toFixed(3) + ',' + t.toFixed(1);
+      if (b.dataset.fit === sig) return;
+      b.dataset.fit = sig;
+      b.style.transformOrigin = '50% 0';
+      b.style.transform = s < 1 || t ? 'translateY(' + t.toFixed(1) + 'px) scale(' + s.toFixed(3) + ')' : '';
+      window.postMessage({ amesPlayerSize: true }, '*');     // the map measures itself again
+    }
+    function fitAll() {
+      var ok = head.build();                       // also tells the map where the header ends
+      window.postMessage({ amesPlayerSize: true }, '*');
+      if (!vertical() || !ok) return;
+      Array.prototype.forEach.call(pageEls(), function (pg, i) { if (i > 0) fitBelow(pg); });
+    }
+    dbg.fitHead = fitAll;
+    addEventListener('resize', function () { setTimeout(function () { head.build(); fitAll(); }, 200); });
 
     var y0 = 0, x0 = 0, axis = null, samples = [];
     // capture on window: runs before any Readymag widget can stopPropagation() the touch
@@ -397,6 +527,7 @@
       }
       var commit = Math.abs(dy) > 60 || (Math.abs(v) > 0.3 && Math.abs(dy) > 24);
       if (commit) go(cur + (dy < 0 ? 1 : -1)); else unlean();
+      if (cur === 0 && !commit) arm();
     }, OPTS);
 
     // ---- desktop: one page per wheel / trackpad gesture (the trackpad's coasting tail is ignored) ----
@@ -429,6 +560,7 @@
       acc += d;
       if (Math.abs(acc) < 14) return;
       locked = true; turnedAt = now; hist = []; peak = 0; trough = Infinity; fading = false;
+      goToken++;                                     // the visitor's own scroll replaces any page move still under way
       dbg.lastWheel = acc > 0 ? 'next' : 'prev';
       turn(acc > 0 ? 1 : -1);
     }, { passive: false, capture: true });
@@ -438,14 +570,23 @@
     function arrive() {
       var i = curIdx();
       if (i === lastIdx) return;
-      var dir = i > lastIdx ? 1 : -1; lastIdx = i;
-      if (vertical() || reduce) return;
+      var dir = i > lastIdx ? 1 : -1, was = lastIdx; lastIdx = i;
+      if (vertical()) return;
+      clearTimeout(autoT);
+      if (was === 0) head.show(true); else if (i === 0) head.hide(true);
+      setTimeout(function () { arrived(i); }, 250);
+      if (reduce) return;
       var page = document.querySelector('.mag .page.center-page');
       var c = page && page.querySelector('.page-content-container');
       if (c && c.animate) dbg.arrivals = (dbg.arrivals || 0) + 1;
       if (c && c.animate) c.animate([{ transform: 'translateY(' + (dir * 64) + 'px)', opacity: 0 }, { transform: 'none', opacity: 1 }],
         { duration: 520, easing: 'cubic-bezier(.2,.8,.2,1)' });
     }
+    window.addEventListener('keydown', function (e) {
+      if (isPhone() || curIdx() !== 1 || !/^(ArrowUp|ArrowLeft|PageUp|Home)$/.test(e.key)) return;
+      if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+    }, true);
     var pagesBox = document.querySelector('.mag-pages-container') || document.documentElement;
     new MutationObserver(arrive).observe(pagesBox, { attributes: true, attributeFilter: ['class'], subtree: true });
 
@@ -465,8 +606,8 @@
         settle(cur);
         holdSlot(cur);
         warm(cur);
+        if (cur > 0) head.show(false);
       })();
-      setTimeout(resetZoom, 600);
       setInterval(fitHeight, 1000);
       // browser bar showing/hiding: Readymag resizes the pages but leaves the scroll where it was: put the page back
       var resizeT;
@@ -487,14 +628,12 @@
       }, { passive: true });
     }
     if (DEBUG) debugPanel(mag);
-    var lastPageForZoom = curIdx();
-    setInterval(function () { var i = curIdx(); if (i !== lastPageForZoom) { lastPageForZoom = i; resetZoom(); } }, 500);
     buildNav(mag);
+    whenPageVisible(mag, function () { arm(); });
   }
 
   // ---- site-wide touches that don't belong to a widget ----
   var NAMES = ['Home', 'Listen', 'About', 'Press', 'Contact'];
-  var FEATURED = /^Groovin'? \(Chorus\)/i;   // the song Listen starts with
   function enhance(mag) {
     document.documentElement.lang = document.documentElement.lang || 'en';
     Array.prototype.forEach.call(document.querySelectorAll('link[rel*="icon"]'), function (l) { if (/\/dist\/img\/favicons\//.test(l.href)) l.remove(); });
@@ -531,7 +670,7 @@
     pageTouches(mag);
     new MutationObserver(function () { clearTimeout(enhanceT); enhanceT = setTimeout(function () { pageTouches(mag); }, 120); })
       .observe(document.querySelector('.mag-pages-container') || document.documentElement, { childList: true, subtree: true });
-    addEventListener('resize', function () { placeListen(); });
+    addEventListener('resize', function () { placeForm(); placeHome(); });
   }
   var enhanceT;
   // applied whenever Readymag (re)renders a page's widgets
@@ -569,73 +708,46 @@
       if (!c.checked) { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }
     });
     placeForm();
-    placeListen();
+    placeHome();
+    if (dbg.fitHead) dbg.fitHead();
   }
-  // contact page: heading + form sit a little above the middle of the visible screen, whatever its height
-  function placeForm() {
-    var form = document.querySelector('.mag .widget-form'), fw = form && form.closest('.rmwidget');
-    var page = fw && fw.closest('.page'), box = page && page.querySelector('.page-content-container');
-    if (!box || !fw.offsetWidth) return;
-    if (box.getAnimations && box.getAnimations().length) { clearTimeout(placeForm.t); placeForm.t = setTimeout(placeForm, 600); return; }
-    var fr = fw.getBoundingClientRect(), k = fr.width / fw.offsetWidth || 1;   // Readymag scales the whole page
+  // Moves a group of widgets up or down so it sits at `ratio` of the visible screen height, whatever that height is.
+  // endOf(w) gives where a widget really ends (the form's own box has no height; it ends at its send button).
+  function placeGroup(page, ws, ratio, endOf, key) {
+    var box = page && page.querySelector('.page-content-container');
+    if (!box || !ws.length || !ws[0].offsetWidth) return;
+    if (box.getAnimations && box.getAnimations().length) { clearTimeout(page['_t' + key]); page['_t' + key] = setTimeout(function () { placeGroup(page, ws, ratio, endOf, key); }, 600); return; }
+    var r0 = ws[0].getBoundingClientRect(), k = r0.width / ws[0].offsetWidth || 1;   // Readymag scales the whole page
     // under the desktop zoom these boxes can be in unzoomed units, where the screen is innerHeight / zoom tall
-    var z = parseFloat(getComputedStyle(box).zoom) || 1, s = Math.abs(fr.width - fw.offsetWidth) < 2 ? z : 1;
-    var ws = Array.prototype.filter.call(page.querySelectorAll('.rmwidget.widget-text-v3'), function (w) { return w.getBoundingClientRect().height > 0; });
-    ws.push(fw);
-    var was = (dbg.formShift || 0) * k, pt = page.getBoundingClientRect().top, top = Infinity, low = 0;
+    var z = parseFloat(getComputedStyle(box).zoom) || 1, s = Math.abs(r0.width - ws[0].offsetWidth) < 2 ? z : 1;
+    var was = (dbg[key] || 0) * k, pt = page.getBoundingClientRect().top / s, top = Infinity, low = 0;
     ws.forEach(function (w) {
       var r = w.getBoundingClientRect();
       top = Math.min(top, r.top - pt - was);
-      // the form's own box has no height (its fields are positioned): it ends at the send button
-      var end = w === fw ? (form.querySelector('.button') || w).getBoundingClientRect().bottom : r.bottom;
-      low = Math.max(low, end - pt - was);
+      low = Math.max(low, (endOf ? endOf(w) : r.bottom) - pt - was);
     });
-    var vh = innerHeight / s, want = Math.max(24 / s, (vh - (low - top)) * 0.42);
+    var vh = innerHeight / s, want = Math.max(24 / s, (vh - (low - top)) * ratio);
     var shift = Math.round((want - top) / k);
     ws.forEach(function (w) { w.style.translate = '0 ' + shift + 'px'; });
-    dbg.formShift = shift;
+    dbg[key] = shift;
   }
-  // landing page: a Listen button just below the page's content, and (once set) links beside it
-  function placeListen() {
+  // contact page: heading + form a little above the middle
+  function placeForm() {
+    var form = document.querySelector('.mag .widget-form'), fw = form && form.closest('.rmwidget');
+    var page = fw && fw.closest('.page');
+    if (!page) return;
+    var ws = Array.prototype.filter.call(page.querySelectorAll('.rmwidget.widget-text-v3'), function (w) { return w.getBoundingClientRect().height > 0; });
+    ws.push(fw);
+    placeGroup(page, ws, 0.42, function (w) { return (w === fw ? (form.querySelector('.button') || w) : w).getBoundingClientRect().bottom; }, 'formShift');
+  }
+  // landing page: name, tagline and email centred on the screen
+  function placeHome() {
     var page = document.querySelector('.mag .page');
-    var box = page && page.querySelector('.page-content-container');
-    if (!box) return;
-    var btn = document.getElementById('ames-listen');
-    if (!btn) {
-      btn = document.createElement('button');
-      btn.id = 'ames-listen'; btn.type = 'button';
-      btn.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1v14l12-7z"/></svg>Listen';
-      btn.addEventListener('click', function () {
-        // straight into a song: the featured one starts as the map arrives (inside the tap, so phones allow the sound)
-        var P = window.__amesPlayer, t = P && P.find && P.find(FEATURED);
-        if (t) P.start(t);
-        if (dbg.goTo) dbg.goTo(2);
-        if (t) setTimeout(function () { window.postMessage({ amesShowTip: t.src }, '*'); }, 650);
-      });
-    }
-    // lives in Readymag's content layer (same coordinates and scaling as the widgets, on every device)
-    if (btn.parentNode !== box) box.appendChild(btn);
-    var low = 0;
-    Array.prototype.forEach.call(box.querySelectorAll('.rmwidget'), function (w) {
-      if (w.classList.contains('widget-background')) return;
-      var t = parseFloat(w.style.top), h = parseFloat(w.style.height);
-      if (!isNaN(t) && !isNaN(h) && w.getBoundingClientRect().height > 0) low = Math.max(low, t + h);
-    });
-    if (low) {
-      var top = Math.round(low + (isPhone() ? 22 : 30)) + 'px';
-      // appears only once its place has stopped changing, so it never shows at the top and then drops
-      if (btn.style.top !== top) {
-        btn.style.top = top;
-        if (!btn.classList.contains('on')) { clearTimeout(btn._t); btn._t = setTimeout(function () { btn.classList.add('on'); }, 350); }
-      }
-    }
+    if (!page) return;
+    var ws = Array.prototype.filter.call(page.querySelectorAll('.rmwidget'), function (w) { return !w.classList.contains('widget-background') && w.getBoundingClientRect().height > 0; });
+    placeGroup(page, ws, 0.5, null, 'homeShift');
   }
-
   // ---- page rail + hints ----
-  var SEEN = 'amesSwipedUp', BACK = 'amesWentBack';
-  function seen(k) { try { return localStorage.getItem(k || SEEN) === '1'; } catch (e) { return false; } }
-  function markSeen(k) { try { localStorage.setItem(k || SEEN, '1'); } catch (e) {} }
-
   function buildNav(mag) {
     var nav = document.createElement('div');
     nav.id = 'ames-nav';
@@ -647,19 +759,25 @@
       '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M7 12V2M2.5 6.5 7 2l4.5 4.5"/></svg><span>' + word + '</span></button>';
     document.body.appendChild(nav);
     var rail = nav.querySelector('#ames-rail'), hint = nav.querySelector('#ames-hint'), up = nav.querySelector('#ames-hint-up');
-    function page() { return (dbg.cur ? dbg.cur() : (mag.currentPage && mag.currentPage.num)) || 1; }
+    function page() { return (dbg.cur && isPhone() ? dbg.cur() : (mag.currentPage && mag.currentPage.num)) || 1; }
     hint.addEventListener('click', function () { if (dbg.goTo) dbg.goTo(page() + 1); else if (!mag.isLastPage()) mag.goNextPage(); });
     up.addEventListener('click', function () { if (dbg.goTo) dbg.goTo(page() - 1); else if (!mag.isFirstPage()) mag.goPrevPage(); });
-
+    // page 2's hint sits just above the player (which grows while a song is loaded)
+    function aboveplayer() {
+      var pl = document.getElementById('ames-player');
+      if (!pl || !pl.isConnected) return 14;
+      var r = pl.getBoundingClientRect(), c = pl.closest('.page-content-container');
+      var z = c ? parseFloat(getComputedStyle(c).zoom) || 1 : 1, k = Math.abs(r.width - pl.offsetWidth) < 2 ? z : 1;
+      var top = r.top * k;
+      return top > innerHeight * 0.4 && top < innerHeight ? Math.round(innerHeight - top + 4) : 14;
+    }
     var shown = { n: 0, count: 0, hint: null, up: null };
     function sync() {
       var count = 0, n = 1;
       try { count = mag.getPagesCount(); n = (mag.currentPage && mag.currentPage.num) || 1; } catch (e) { return; }
-      if (n > 1 && !seen()) markSeen();
-      if (shown.n === count && n < count && count > 1 && !seen(BACK)) markSeen(BACK);   // went back up from the last page
       if (count !== shown.count) {
         rail.innerHTML = '';
-        for (var ci = 0; ci < count; ci++) (function (pn) {
+        for (var ci = 1; ci < count; ci++) (function (pn) {     // page 1 is reached through the header, not the rail
           var b = document.createElement('button');
           b.type = 'button';
           b.setAttribute('aria-label', 'Go to ' + (NAMES[pn - 1] || 'page ' + pn));
@@ -670,10 +788,20 @@
         shown.count = count; shown.n = 0;
       }
       if (n !== shown.n) {
-        Array.prototype.forEach.call(rail.children, function (d, i) { d.firstChild.classList.toggle('on', i === n - 1); if (i === n - 1) d.setAttribute('aria-current', 'page'); else d.removeAttribute('aria-current'); });
+        Array.prototype.forEach.call(rail.children, function (d, i) { d.firstChild.classList.toggle('on', i === n - 2); if (i === n - 2) d.setAttribute('aria-current', 'page'); else d.removeAttribute('aria-current'); });
+        rail.style.visibility = n === 1 ? 'hidden' : '';
         shown.n = n;
       }
-      var showHint = n === 1 && !seen() && count > 1, showUp = n === count && count > 1 && !seen(BACK);
+      var showHint = n === 2 && count > 2, showUp = n === count && count > 2;
+      if (showHint) { var bt = aboveplayer() + 'px'; if (hint.style.bottom !== bt) hint.style.bottom = bt; }
+      var miniOn = !!(document.getElementById('ames-mini') && document.getElementById('ames-mini').classList.contains('on'));
+      if (miniOn !== shown.mini) { shown.mini = miniOn; if (dbg.fitHead) dbg.fitHead(); }
+      // the header follows the page (a deep link, or a page Readymag showed by itself)
+      var hd = dbg.head;
+      if (hd) {
+        if (n > 1 && !hd.classList.contains('on')) hd.show(false);
+        else if (n === 1 && hd.classList.contains('on') && !(hd.getAnimations && hd.getAnimations().length)) hd.classList.remove('on');
+      }
       if (showHint !== shown.hint) { hint.classList.toggle('off', !showHint); shown.hint = showHint; }
       if (showUp !== shown.up) { up.classList.toggle('off', !showUp); shown.up = showUp; }
       dbg.page = n;

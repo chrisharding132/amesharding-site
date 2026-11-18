@@ -42,9 +42,7 @@ test('live amesharding.com: paging, mood browser and player', async ({ page }) =
   await page.waitForTimeout(1500);
   if (isPhone) {
     await expect(page.locator('.navigation-arrow.bottom')).toBeHidden();
-    await expect(page.locator('#ames-hint')).not.toHaveClass(/off/);
-    await expect(page.locator('#ames-rail i')).toHaveCount(5);
-    await expect(page.locator('#ames-rail i').nth(0)).toHaveClass(/on/);
+    await expect(page.locator('#ames-rail i')).toHaveCount(4);              // pages 2-5: page 1 is reached by the header
     await page.screenshot({ path: 'test-results/live-page1-' + test.info().project.name + '.png' });
   }
   await swipe(page, -300);
@@ -52,8 +50,8 @@ test('live amesharding.com: paging, mood browser and player', async ({ page }) =
   await expect(page, 'swipe: ' + swipeInfo).toHaveURL(/amesharding\.com\/2/, { timeout: 5000 });
 
   if (isPhone) {
-    await expect(page.locator('#ames-hint')).toHaveClass(/off/);
-    await expect(page.locator('#ames-rail i').nth(1)).toHaveClass(/on/);
+    await expect(page.locator('#ames-hint')).not.toHaveClass(/off/);       // page 2's swipe hint
+    await expect(page.locator('#ames-rail i').nth(0)).toHaveClass(/on/);
   }
   await expect(page.locator('#ames-mb .ames-light')).toHaveCount(28, { timeout: 15000 });
   await expect(page.locator('#ames-player .ames-group')).toHaveCount(2);
@@ -66,7 +64,11 @@ test('live amesharding.com: paging, mood browser and player', async ({ page }) =
   const title = await page.locator('#ames-player .ames-title').textContent();
   await page.screenshot({ path: 'test-results/live-playing-' + test.info().project.name + '.png' });
 
+  // page 2 is the top while swiping; the header goes home
   await swipe(page, 300);
+  await page.waitForTimeout(800);
+  await expect(page).toHaveURL(/\/2/);
+  await page.locator('#ames-head').click();
   await expect(page).not.toHaveURL(/\/2/, { timeout: 5000 });
   if (isPhone) {
     await page.reload();

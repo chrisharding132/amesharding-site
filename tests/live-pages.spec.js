@@ -41,12 +41,11 @@ test('flicking through every page and past the ends never shows black', async ({
   log.push(['past 5 again', await flickAndWatch(page, -400)]);
   const atEnd = log[log.length - 1][1];
   expect(Math.abs(await top5()), 'page 5 sits exactly in view after pushing past it').toBeLessThan(3);
-  for (let i = 0; i < 4; i++) log.push(['up', await flickAndWatch(page, 260)]);
+  for (let i = 0; i < 4; i++) log.push(['up', await flickAndWatch(page, 260)]);   // the 4th pushes past page 2, which is the top
   console.log('PAGES', JSON.stringify(log));
   for (const [what, r] of log) expect(r.worst, `${what} -> page ${r.page}: lowest screen coverage`).toBeGreaterThanOrEqual(0.98);
   expect(atEnd.page).toBe(5);
-  // (checked right after the 'past 5 again' flick above; re-check now we're back at page 1 is meaningless)
-  expect(log[log.length - 1][1].page).toBe(1);
+  expect(log[log.length - 1][1].page, 'swiping up stops at page 2').toBe(2);
 });
 
 test('lights still drift with Reduce Motion on', async ({ page }) => {

@@ -98,7 +98,7 @@ const isDesktop = (i) => i.project.name.startsWith('desktop');
     test('form, wheel and photos', async ({ page, browserName }) => {
       test.setTimeout(50000);
       await local(page);
-      await page.goto('https://amesharding.com/');
+      await page.goto('https://amesharding.com/2/');
       await page.waitForTimeout(3000);
       // a second push while the first page change is still running must still count
       const wheelAt = () => page.mouse.wheel(0, 60);
@@ -109,10 +109,11 @@ const isDesktop = (i) => i.project.name.startsWith('desktop');
       await page.waitForTimeout(1100);
       const n = await page.evaluate(() => RM.viewerRouter.mag.currentPage.num);
       console.log('WHEEL', browserName, n);
-      expect(n, 'both pushes moved a page').toBe(3);
+      expect(n, 'both pushes moved a page').toBe(4);
 
       // page 3: the columns hold only when pointed at
-      await page.waitForTimeout(800);
+      await page.goto('https://amesharding.com/3/');
+      await page.waitForTimeout(3000);
       const cols = await page.evaluate(() => [...document.querySelectorAll('.page.center-page .animation-container')].map((c) => { const r = c.getBoundingClientRect(); return [r.left, r.right]; }));
       const held = () => page.evaluate(() => document.querySelector('.page.center-page').classList.contains('ames-hold'));
       await page.mouse.move(720, 450); await page.waitForTimeout(150);
@@ -147,13 +148,8 @@ test.describe('phone', () => {
   test('first swipe lands exactly, title centred, form clear', async ({ page }) => {
     test.setTimeout(50000);
     await local(page);
-    // Listen must never show before it has its place
-    await page.addInitScript(() => { window.__lt = []; const f = () => { const b = document.getElementById('ames-listen'); if (b) { const r = b.getBoundingClientRect(); if (getComputedStyle(b).visibility === 'visible') window.__lt.push(Math.round(r.top)); } requestAnimationFrame(f); }; requestAnimationFrame(f); });
     await page.goto('https://amesharding.com/');
-    await page.waitForTimeout(3500);
-    const lt = await page.evaluate(() => [...new Set(window.__lt)]);
-    console.log('LISTEN', JSON.stringify(lt));
-    expect(lt.length, 'one position only').toBe(1);
+    await page.waitForTimeout(2500);
 
     // page 1 re-sizes mid-glide, as Chrome on iPhone does the first time: must still land exactly on page 2
     const land = await page.evaluate(() => new Promise((res) => {
