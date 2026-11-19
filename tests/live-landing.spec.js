@@ -67,7 +67,8 @@ for (const motion of ['no-preference', 'reduce']) {
       await local(page);
       await page.goto('https://amesharding.com/');
       await page.waitForFunction(() => window.__amesPaging && window.__amesPaging.ready, null, { timeout: 15000 });
-      await page.waitForTimeout(900);
+      await page.waitForFunction(() => [...document.querySelectorAll('.mag .page')[0].querySelectorAll('.rmwidget.widget-picture')].some((w) => w.getBoundingClientRect().height > 4), null, { timeout: 10000 });
+      await page.waitForTimeout(500);
       const c = await centred(page);
       console.log('CENTRE phone', JSON.stringify(c));
       // (the tagline's space is kept while its font loads, so the group is centred with it)
