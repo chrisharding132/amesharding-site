@@ -16,6 +16,7 @@
   // lock native free-scroll on the phone build; pages advance only via swipes
   st.textContent = [
     '.isphone body{overscroll-behavior:none;}',
+    'html:not(.isphone),html:not(.isphone) body{overscroll-behavior:none;}',   // no sideways back/forward swipe or bounce
     '.isphone .mag.viewer-type-vertical,.isphone .mag.viewer-type-vertical .mag-pages-container{touch-action:pinch-zoom;}',
     // Readymag's bottom arrow sat on top of the Mood Player; the rail + hint below replace it on phones.
     // the rail and hint replace Readymag's arrows everywhere; scrolling is the one way through the site on every device
@@ -590,11 +591,14 @@
       if (isPhone() || e.ctrlKey) return;                         // ctrl+wheel = pinch-zoom on trackpads
       var inner = e.target.closest && e.target.closest('textarea, select, [data-ames-scroll]');
       if (inner && inner.scrollHeight > inner.clientHeight + 1) return;   // only if it really has something to scroll
+      // Claim every event, even the empty one a Mac trackpad sends to start each gesture: Chrome lets the page
+      // cancel only a gesture's first event, and an unclaimed gesture goes on to Chrome's own sideways
+      // back/forward swipe and rubber-band scroll while the pages turn here as well.
+      e.preventDefault();
+      e.stopImmediatePropagation();                  // Readymag's own wheel paging stays out of it
       var d = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
       if (e.deltaMode === 1) d *= 16;
       if (!d) return;
-      e.preventDefault();
-      e.stopImmediatePropagation();                  // Readymag's own wheel paging stays out of it
       var abs = Math.abs(d), dir = d > 0 ? 1 : -1, now = performance.now();
       // a scroll that starts just as the landing page moves on by itself was aimed at that same move
       if (now - autoAt < 900 && !locked) { locked = true; turnedAt = now; hist = []; peak = 0; trough = Infinity; fading = false; clearTimeout(quiet); quiet = setTimeout(function () { locked = false; acc = 0; }, 180); return; }
