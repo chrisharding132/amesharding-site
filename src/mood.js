@@ -260,7 +260,9 @@
     // so the map gets the same layout before and after the page arrives (no rearranging on arrival)
     plBottom = Math.min(plBottom, innerHeight);
     var expanded = (P && P.expandedHeight ? P.expandedHeight : pl.offsetHeight) * (r.height / (pl.offsetHeight || 1));
-    return (plBottom - expanded - boxTop) / k - 6;
+    // the swipe hint sits just above the open player: the map keeps clear of it too, so DARK is never covered
+    var hint = document.getElementById('ames-hint'), hintH = hint ? (hint.offsetHeight || 40) + 4 : 0;
+    return (plBottom - expanded - hintH - boxTop) / k - 6;
   }
 
   // Wide screens: the map can use the whole height of the screen above the player, not just the widget's box.

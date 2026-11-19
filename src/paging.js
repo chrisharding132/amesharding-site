@@ -540,9 +540,55 @@
       b.style.transform = s < 1 || t ? 'translateY(' + t.toFixed(1) + 'px) scale(' + s.toFixed(3) + ')' : '';
       window.postMessage({ amesPlayerSize: true }, '*');     // the map measures itself again
     }
+    // Desktop: Readymag sizes a page to the window's width only, so in a short window the content runs up under
+    // the header and off the bottom. Pages 3 on scale down (centred) to fit between a fixed gap under the header
+    // and the bottom. Page 1 centres itself and the map page fits its own lights.
+    function fitDesk(pg) {
+      var b = pg.querySelector('.content-bounds'), c = pg.querySelector('.page-content-container'), pr = pg.getBoundingClientRect();
+      if (!b || !c || !pr.height) return;
+      if (c.getAnimations && c.getAnimations().length) { clearTimeout(pg._fitT); pg._fitT = setTimeout(function () { fitDesk(pg); }, 600); return; }
+      var old = b.dataset.fit ? b.dataset.fit.split(',').map(Number) : [1, 0], s0 = old[0], t0 = old[1];
+      // under the zoom, rects can come back in unzoomed units: u turns them into screen pixels
+      var z = parseFloat(getComputedStyle(c).zoom) || 1, br = b.getBoundingClientRect();
+      var u = Math.abs(br.width / s0 - b.offsetWidth) < 2 ? z : 1, top = Infinity, low = 0;
+      function add(r) {
+        if (r.height < 2 || r.width < 2) return;
+        top = Math.min(top, (r.top * u - pr.top - t0) / s0);
+        low = Math.max(low, (r.bottom * u - pr.top - t0) / s0);
+      }
+      Array.prototype.forEach.call(pg.querySelectorAll('.rmwidget'), function (w) {
+        if (w.classList.contains('widget-background') || w.closest('.page-fixed-bg-container')) return;
+        var mover = w.closest('.animation-container');           // photo columns that run off the page: not content
+        if (mover && getComputedStyle(mover).animationName !== 'none') {
+          var mr = mover.getBoundingClientRect();
+          if (mr.top * u < pr.top - 4 || mr.bottom * u > pr.bottom + 4) return;
+        }
+        add(w.getBoundingClientRect());
+        var btn = w.querySelector('.widget-form .button');          // a form reaches down to its button
+        if (btn) add(btn.getBoundingClientRect());
+      });
+      if (!isFinite(top)) return;
+      var last = pg === pageEls()[pageEls().length - 1];
+      var A = Math.max((window.__amesHeadBottom || 0) + (last ? 48 : 16), top), bottom = innerHeight - 24, sc = 1, t = 0;
+      if (top < A || low > bottom) {
+        sc = Math.max(0.45, Math.min(1, (bottom - A) / (low - top)));
+        t = A - top * sc;
+      }
+      var sig = sc.toFixed(3) + ',' + t.toFixed(1);
+      if (b.dataset.fit === sig) return;
+      b.dataset.fit = sig;
+      b.style.transformOrigin = '50% 0';
+      b.style.transform = sc < 1 || t ? 'translateY(' + (t / z).toFixed(1) + 'px) scale(' + sc.toFixed(3) + ')' : '';
+    }
+    function fitDeskAll() {
+      if (isPhone()) return;
+      Array.prototype.forEach.call(pageEls(), function (pg, i) { if (i > 1) fitDesk(pg); });
+    }
+    dbg.fitDesk = fitDeskAll;
     function fitAll() {
       var ok = head.build();                       // also tells the map where the header ends
       window.postMessage({ amesPlayerSize: true }, '*');
+      if (ok) fitDeskAll();
       if (!vertical() || !ok) return;
       Array.prototype.forEach.call(pageEls(), function (pg, i) { if (i > 0) fitBelow(pg); });
     }
@@ -648,6 +694,7 @@
       clearTimeout(autoT);
       if (was === 0) head.show(true); else if (i === 0) head.hide(true);
       if (i === count() - 1) placeForm();
+      if (i > 1 && dbg.fitDesk) { dbg.fitDesk(); setTimeout(dbg.fitDesk, 900); }   // again once its images have sized it
       setTimeout(function () { arrived(i); }, 250);
       if (reduce || i === 0) return;
       var page = document.querySelector('.mag .page.center-page');
@@ -683,9 +730,20 @@
         if (cur > 0) head.show(false);
       })();
       setInterval(fitHeight, 1000);
+      // Chrome on iPhone grows/shrinks its toolbars mid-swipe; a resize that lands during a page change was
+      // skipped below, leaving the page part-way down the screen. Check the page is on its slot and put it back.
+      var fingers = 0;
+      ['touchstart', 'touchend', 'touchcancel'].forEach(function (t) {
+        addEventListener(t, function (e) { fingers = e.touches.length; }, { passive: true, capture: true });
+      });
+      setInterval(function () {
+        if (busy || fingers || zoomed() || !vertical()) return;
+        if (Math.abs(scrollY - slotOf(cur)) > 2) settle(cur);
+      }, 400);
       // browser bar showing/hiding: Readymag resizes the pages but leaves the scroll where it was: put the page back
-      var resizeT;
+      var resizeT, resizedAt = -1e9;
       addEventListener('resize', function () {
+        resizedAt = performance.now();
         fitHeight();
         clearTimeout(resizeT);
         resizeT = setTimeout(function () { if (!busy) settle(cur); }, 150);
@@ -696,8 +754,13 @@
         if (busy) return;
         clearTimeout(scrollEnd);
         scrollEnd = setTimeout(function () {
-          if (busy || Math.abs(scrollY - slotOf(cur)) <= 2) return;
-          cur = nearestIdx(scrollY); settle(cur);
+          var off = Math.abs(scrollY - slotOf(cur));
+          if (busy || off <= 2) return;
+          // A toolbar growing/shrinking re-sizes the pages under a scroll that stays put, so the page looks out of
+          // place without anyone having moved: that must never count as going to another page (it sent page 3 back
+          // to page 2). Only a large move well clear of a resize follows the scroll; anything else goes back.
+          if (performance.now() - resizedAt > 1500 && off > innerHeight * 0.6) cur = nearestIdx(scrollY);
+          settle(cur);
         }, 160);
       }, { passive: true });
     }
@@ -795,7 +858,9 @@
     if (box.getAnimations && box.getAnimations().length) { clearTimeout(page['_t' + key]); page['_t' + key] = setTimeout(function () { placeGroup(page, ws, ratio, endOf, key, topRoom, bottomRoom); }, 600); return; }
     var r0 = ws[0].getBoundingClientRect(), k = r0.width / ws[0].offsetWidth || 1;   // Readymag scales the whole page
     // under the desktop zoom these boxes can be in unzoomed units, where the screen is innerHeight / zoom tall
-    var z = parseFloat(getComputedStyle(box).zoom) || 1, s = Math.abs(r0.width - ws[0].offsetWidth) < 2 ? z : 1;
+    // (a page scaled to fit a short window is that much smaller again: allow for it when telling the units apart)
+    var cb = page.querySelector('.content-bounds'), fs = cb && cb.dataset.fit ? +cb.dataset.fit.split(',')[0] || 1 : 1;
+    var z = parseFloat(getComputedStyle(box).zoom) || 1, s = Math.abs(r0.width / fs - ws[0].offsetWidth) < 2 ? z : 1;
     var was = (dbg[key] || 0) * k, pt = page.getBoundingClientRect().top / s, top = Infinity, low = 0;
     ws.forEach(function (w) {
       var r = w.getBoundingClientRect();
