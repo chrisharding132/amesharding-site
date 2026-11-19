@@ -17,6 +17,9 @@
   st.textContent = [
     '.isphone body{overscroll-behavior:none;}',
     'html:not(.isphone),html:not(.isphone) body{overscroll-behavior:none;}',   // no sideways back/forward swipe or bounce
+    // desktop: pages change in place and the content glides in vertically (below); Readymag's own sideways
+    // slide between pages would run underneath that glide, so it is switched off
+    'html:not(.isphone) .mag.viewer-type-horizontal .mag-pages-container .container .page{transition:none!important;}',
     '.isphone .mag.viewer-type-vertical,.isphone .mag.viewer-type-vertical .mag-pages-container{touch-action:pinch-zoom;}',
     // Readymag's bottom arrow sat on top of the Mood Player; the rail + hint below replace it on phones.
     // the rail and hint replace Readymag's arrows everywhere; scrolling is the one way through the site on every device
