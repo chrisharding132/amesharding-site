@@ -35,12 +35,15 @@
     "#ames-mb .ames-empty{position:absolute;left:50%;top:68%;transform:translate(-50%,-50%);z-index:6;display:none;flex-direction:column;align-items:center;gap:10px;color:#F0E8DA;text-align:center;",
     "  font:300 11px/1.3 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;letter-spacing:.2em;text-transform:uppercase;white-space:nowrap;}",
     '#ames-mb .ames-empty.on{display:flex;}',
-    // first visit: "Tap to listen" in handwriting, with a hand-drawn arrow to the light to start with
+    // every visit until a light is tapped: "tap to listen" in the site's own handwriting, with a hand-drawn arrow
     '#ames-mb .ames-cue{position:absolute;left:0;top:0;width:100%;height:100%;z-index:1;pointer-events:none;opacity:0;transition:opacity .7s ease;}',
     '#ames-mb .ames-stage.on .ames-cue.on{opacity:1;}',
-    "#ames-mb .ames-cue span{position:absolute;white-space:nowrap;color:#F0E8DA;font:400 27px/1 'Nanum Pen Script','Bradley Hand','Segoe Print',cursive;letter-spacing:.01em;text-shadow:0 0 14px rgba(52,48,96,.6);}",
-    '#ames-mb .ames-cue svg{position:absolute;left:0;top:0;overflow:visible;}',
-    '#ames-mb .ames-cue path{fill:none;stroke:#F0E8DA;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}',
+    "#ames-mb .ames-cue span{position:absolute;white-space:nowrap;color:#F0E8DA;font-size:25px;line-height:1;font-weight:400;letter-spacing:.02em;text-shadow:0 0 14px rgba(52,48,96,.6);}",
+    '#ames-mb .ames-cue svg{position:absolute;left:0;top:0;overflow:visible;',
+    "  -webkit-mask-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.3' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.9 -0.35'/%3E%3C/filter%3E%3Crect width='60' height='60' filter='url(%23n)'/%3E%3C/svg%3E\");mask-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.3' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.9 -0.35'/%3E%3C/filter%3E%3Crect width='60' height='60' filter='url(%23n)'/%3E%3C/svg%3E\");-webkit-mask-size:60px 60px;mask-size:60px 60px;}",
+    '#ames-mb .ames-cue path{fill:none;stroke:#F0E8DA;stroke-linecap:round;stroke-linejoin:round;}',
+    '#ames-mb .ames-cue path.a{stroke-width:2.6;}',
+    '#ames-mb .ames-cue path.b{stroke-width:1.2;opacity:.55;}',
     // the light to start with: rings keep radiating out from it until anything has been played
     '#ames-mb .ames-light.ames-start::before,#ames-mb .ames-light.ames-start:not(.playing)::after{content:"";position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;pointer-events:none;',
     '  border:1.5px solid rgba(240,232,218,.95);box-shadow:0 0 10px rgba(236,182,146,.55);background:none;-webkit-mask-image:none;mask-image:none;',
@@ -131,15 +134,7 @@
     st.id = 'ames-mb-css';
     st.textContent = CSS;
     document.head.appendChild(st);
-    // the handwriting for "Tap to listen" (a complete alphabet: Readymag's own handwriting fonts only carry the
-    // letters the site uses). Loaded so it never holds up the page: as print-only, switched on once it arrives.
-    var hand = document.createElement('link');
-    hand.rel = 'stylesheet'; hand.media = 'print'; hand.href = 'https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap';
-    hand.onload = function () {
-      hand.media = 'all';
-      if (document.fonts && document.fonts.load) document.fonts.load("27px 'Nanum Pen Script'", 'Tap to listen Click').then(function () { S.boxes.forEach(layout); }, function () {});
-    };
-    document.head.appendChild(hand);
+    setTimeout(function () { pickHand(); }, 0);   // once this whole file has run (the font list below is defined)
 
     window.addEventListener('message', function (e) {
       var d = e.data;
@@ -195,12 +190,42 @@
     }
   }
 
-  // first-visit guidance (the prompt and the start-here ring) stops for good once anything has been played
-  var FEATURED = /^Groovin'? \(Chorus\)/i, PLAYED = 'amesPlayed';
-  function hasPlayed() { try { return localStorage.getItem(PLAYED) === '1'; } catch (e) { return !!S.played; } }
+  // the guidance ("tap to listen", arrow, start-here rings) shows on every visit until a light has been played
+  var FEATURED = /^Groovin'? \(Chorus\)/i;
+  function hasPlayed() { return !!S.played; }
+
+  // Readymag's handwriting fonts carry only the letters the site uses: write the words in the first of them that has
+  // every letter (a missing letter is drawn by the fallback font, so two different fallbacks measure differently).
+  // Only if none of them has the letters does a complete handwriting font load from Google Fonts.
+  var HANDS = ['custom_190205', 'custom_190184', 'custom_190188', 'custom_190186', 'custom_190187'];
+  function covers(fam, text) {
+    var c = covers.c || (covers.c = document.createElement('canvas').getContext('2d'));
+    return text.replace(/\s/g, '').split('').every(function (ch) {
+      c.font = '40px "' + fam + '", monospace'; var a = c.measureText(ch).width;
+      c.font = '40px "' + fam + '", serif'; return Math.abs(a - c.measureText(ch).width) < 0.01;
+    });
+  }
+  // (this file can load before Readymag has declared its fonts: look again a few times before giving up on them)
+  function pickHand(tries) {
+    tries = tries || 0;
+    var phrases = matchMedia('(hover: none)').matches ? ['tap to listen'] : ['click to listen', 'tap to listen'];
+    var loads = HANDS.map(function (f) { return document.fonts && document.fonts.load ? document.fonts.load('40px "' + f + '"', 'clicktaplisen').catch(function () {}) : null; });
+    Promise.all(loads).then(function () {
+      for (var i = 0; i < phrases.length; i++) for (var j = 0; j < HANDS.length; j++) {
+        if ((j === 0 || tries >= 4) && covers(HANDS[j], phrases[i])) { S.hand = { family: '"' + HANDS[j] + '"', text: phrases[i] }; S.boxes.forEach(layout); return; }
+      }
+      if (tries < 8) return setTimeout(function () { pickHand(tries + 1); }, 700);
+      var link = document.createElement('link');
+      link.rel = 'stylesheet'; link.media = 'print'; link.href = 'https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap';
+      link.onload = function () {
+        link.media = 'all';
+        document.fonts.load("27px 'Nanum Pen Script'", phrases[0]).then(function () { S.hand = { family: "'Nanum Pen Script'", text: phrases[0] }; S.boxes.forEach(layout); }, function () {});
+      };
+      document.head.appendChild(link);
+    });
+  }
   function markPlayed() {
     S.played = true;
-    try { localStorage.setItem(PLAYED, '1'); } catch (e) {}
     document.documentElement.classList.remove('ames-prompting');
     S.boxes.forEach(function (b) {
       if (b._cue) b._cue.classList.remove('on');
@@ -436,7 +461,7 @@
     box.setAttribute('aria-label', 'Mood map of tracks, from organic to electronic and dark to light');
     box.innerHTML = '<div class="ames-stage">' +
       '<div class="ames-empty" role="status"><span>No tracks match</span><button type="button">Clear</button></div>' +
-      '<div class="ames-cue" aria-hidden="true"><svg><path/></svg><span>' + (matchMedia('(hover: none)').matches ? 'Tap' : 'Click') + ' to listen</span></div>' +
+      '<div class="ames-cue" aria-hidden="true"><svg><defs><filter id="ames-rough" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4"/></filter></defs><g filter="url(#ames-rough)"><path class="a"/><path class="b"/></g></svg><span></span></div>' +
       '<img class="ames-labels l" alt="" data-src="' + BASE + 'assets/labels-landscape-v2.png">' +
       '<img class="ames-labels p" alt="" data-src="' + BASE + 'assets/labels-portrait-v2.png"></div>';
     box._stage = box.firstChild;
@@ -452,19 +477,20 @@
     // re-measure whenever the Mood Browser page comes into view
     if (window.IntersectionObserver) new IntersectionObserver(function (es) {
       if (es.some(function (e) { return e.isIntersecting; })) { layout(box); setTimeout(function () { layout(box); }, 400); }
-      if (es.some(function (e) { return e.intersectionRatio >= 0.5; })) ripple(box);
     }, { threshold: [0, 0.5, 1] }).observe(box);
   }
 
   // "Tap to listen" goes in the emptiest spot of the map's top-right area, a comfortable arrow's length from the
   // light to start with; the arrow is drawn freshly each layout, curving from the words to just short of the light.
   function cue(box, pts, words, W, H, x0, x1, y0, y1, drift) {
-    var el = box._cue, on = !hasPlayed(), fi = -1;
+    var el = box._cue, on = !hasPlayed() && !!S.hand, fi = -1;
     (box._lights || []).forEach(function (l, i) { if (fi < 0 && FEATURED.test(l.t.title)) fi = i; });
     el.classList.toggle('on', on && fi >= 0);
-    document.documentElement.classList.toggle('ames-prompting', on && fi >= 0);
+    document.documentElement.classList.toggle('ames-prompting', !hasPlayed() && fi >= 0);
     if (!on || fi < 0) return;
-    var span = el.querySelector('span'), tw = span.offsetWidth || 120, th = span.offsetHeight || 24, L = pts[fi], best = null;
+    var span = el.querySelector('span');
+    if (span.textContent !== S.hand.text) { span.textContent = S.hand.text; span.style.fontFamily = S.hand.family; }
+    var tw = span.offsetWidth || 120, th = span.offsetHeight || 24, L = pts[fi], best = null;
     for (var ty = y0; ty <= y0 + (y1 - y0) * 0.45; ty += 6) for (var tx = x1 - tw; tx >= x0 + (x1 - x0) * 0.35; tx -= 8) {
       var cx = Math.max(tx, Math.min(L.x, tx + tw)), cy = Math.max(ty, Math.min(L.y, ty + th)), d = Math.hypot(L.x - cx, L.y - cy);
       var n = pts.reduce(function (m, p) {
@@ -478,24 +504,26 @@
     }
     if (!best) { el.classList.remove('on'); document.documentElement.classList.remove('ames-prompting'); return; }   // no room for it
     span.style.left = best.x.toFixed(1) + 'px'; span.style.top = best.y.toFixed(1) + 'px';
-    // from the edge of the words nearest the light, curving, to 24px short of it
-    var sx = Math.max(best.x, Math.min(L.x, best.x + tw)), sy = Math.max(best.y + th * 0.5, Math.min(L.y, best.y + th + 4));
-    if (sx > best.x && sx < best.x + tw) sy = L.y > best.y ? best.y + th + 6 : best.y - 6; else sx += sx <= best.x ? -8 : 8;
+    // from the side of the words facing the light, level with the middle of the words, curving to 24px short of it
+    var left = L.x < best.x + tw / 2, sx = left ? best.x - 9 : best.x + tw + 9, sy = best.y + th * 0.55;
     var dx = L.x - sx, dy = L.y - sy, len = Math.hypot(dx, dy) || 1, ex = L.x - dx / len * 24, ey = L.y - dy / len * 24;
     var bend = (dx > 0 ? -1 : 1) * Math.min(60, len * 0.28), qx = (sx + ex) / 2 - dy / len * bend, qy = (sy + ey) / 2 + dx / len * bend;
     var a = Math.atan2(ey - qy, ex - qx), h = 10;
     var hx1 = ex - h * Math.cos(a - 0.5), hy1 = ey - h * Math.sin(a - 0.5), hx2 = ex - h * Math.cos(a + 0.5), hy2 = ey - h * Math.sin(a + 0.5);
     var f = function (v) { return v.toFixed(1); };
     el.querySelector('svg').setAttribute('width', W); el.querySelector('svg').setAttribute('height', H);
-    el.querySelector('path').setAttribute('d', 'M' + f(sx) + ' ' + f(sy) + ' Q' + f(qx) + ' ' + f(qy) + ' ' + f(ex) + ' ' + f(ey) +
-      ' M' + f(hx1) + ' ' + f(hy1) + ' L' + f(ex) + ' ' + f(ey) + ' L' + f(hx2) + ' ' + f(hy2));
+    var d = 'M' + f(sx) + ' ' + f(sy) + ' Q' + f(qx) + ' ' + f(qy) + ' ' + f(ex) + ' ' + f(ey) + ' M' + f(hx1) + ' ' + f(hy1) + ' L' + f(ex) + ' ' + f(ey) + ' L' + f(hx2) + ' ' + f(hy2);
+    // a second, finer pass a hair off the first, like a marker going over its line
+    var d2 = 'M' + f(sx + 0.9) + ' ' + f(sy - 0.7) + ' Q' + f(qx + 1.2) + ' ' + f(qy - 1) + ' ' + f(ex + 0.6) + ' ' + f(ey + 0.6);
+    el.querySelector('path.a').setAttribute('d', d);
+    el.querySelector('path.b').setAttribute('d', d2);
     box._cueAt = { x: best.x, y: best.y, w: tw, h: th, light: [L.x, L.y] };
   }
 
-  // Every time the map page arrives (at most every 8s): a brightening sweeps across the lights, left to right,
+  // Every time the map page arrives: a brightening sweeps across the lights, left to right,
   // so they read as things to touch. With Reduce Motion it is a glow without the swell.
   function ripple(box) {
-    if (!box._lights || !box._lights.length || Date.now() - (S.rippledAt || 0) < 8000) return;
+    if (!box._lights || !box._lights.length || Date.now() - (S.rippledAt || 0) < 1500) return;
     if (!box._stage.classList.contains('on')) { clearTimeout(box._rip); box._rip = setTimeout(function () { ripple(box); }, 300); return; }
     S.rippledAt = Date.now();
     S.ripples = (S.ripples || 0) + 1;

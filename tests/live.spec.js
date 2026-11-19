@@ -73,7 +73,7 @@ test('live amesharding.com: paging, mood browser and player', async ({ page }) =
   if (isPhone) {
     await page.reload();
     await expect.poll(() => page.evaluate(() => !!(window.__amesPaging && window.__amesPaging.ready)), { timeout: 15000 }).toBe(true);
-    await expect(page.locator('#ames-hint')).toHaveClass(/off/);
+    await expect(page.locator('#ames-hint'), 'page 1 always shows its swipe hint').not.toHaveClass(/off/);
   }
   console.log(JSON.stringify({ isPhone, title, hosted, errors }, null, 1));
 });

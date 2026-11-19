@@ -18,15 +18,15 @@ phone-sized on portrait screens; it starts downloading before anything else. -->
 <link rel="apple-touch-icon" href="${img('icon-180.png')}">
 <link rel="preconnect" href="${new URL(base).origin}" crossorigin>
 <link rel="preload" as="fetch" href="${base}tracks.json" crossorigin>
-<link rel="preload" as="image" href="${img('bg-portrait.jpg')}" media="(max-aspect-ratio: 1/1)">
-<link rel="preload" as="image" href="${img('bg-landscape.jpg')}" media="(min-aspect-ratio: 1/1)">
+<link rel="preload" as="image" href="${img('bg-portrait.jpg')}" media="(max-aspect-ratio: 1/1) and (max-width: 600px)">
+<link rel="preload" as="image" href="${img('bg-landscape.jpg')}" media="(min-aspect-ratio: 1/1), (min-width: 601px)">
 <style>
 /* the site's purple from the very first frame, instead of a white flash */
 html,body{background-color:#7a6485}
 /* Readymag paints the page colour on one of these layers depending on how it renders the page;
    all three get the same image (one download), so whichever is on top shows it */
 .mag .page,.mag .page-fixed-bg-container,.mag .widget-background{background-image:url("${img('bg-landscape.jpg')}");background-size:cover;background-position:50% 50%;background-repeat:no-repeat}
-@media (max-aspect-ratio:1/1){.mag .page,.mag .page-fixed-bg-container,.mag .widget-background{background-image:url("${img('bg-portrait.jpg')}")}}
+@media (max-aspect-ratio:1/1) and (max-width:600px){.mag .page,.mag .page-fixed-bg-container,.mag .widget-background{background-image:url("${img('bg-portrait.jpg')}")}}
 html body a[href^="mailto:"],html body a[href^="mailto:"]:hover,html body a[href^="mailto:"].hover,html body a[href^="mailto:"] *,html body a[href^="mailto:"]:hover *{color:inherit!important;text-decoration:none!important;background:none!important}
 </style>
 `,

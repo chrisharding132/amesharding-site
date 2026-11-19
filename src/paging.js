@@ -40,9 +40,13 @@
     'html:not(.isphone) #ames-rail button:hover span,html:not(.isphone) #ames-rail button:focus-visible span{opacity:1;transform:translate(0,-50%);}',
     'html:not(.isphone) #ames-rail button:focus-visible{outline:1px solid rgba(240,232,218,.7);outline-offset:-2px;border-radius:3px;}',
     // pages 2 onwards: the name, small, at the top (it travels there from page 1); tapping it goes home
+    // a window taller than wide but bigger than a phone (a narrow desktop window, a tablet): the large background,
+    // cropped to fit. The small phone image is only sharp at phone sizes; real phones keep loading just that one.
+    '@media (max-aspect-ratio:1/1) and (min-width:601px){html body .mag .page,html body .mag .page-fixed-bg-container,html body .mag .widget-background{background-image:url("' + BASE + 'assets/bg-landscape.jpg")!important;}}',
     '#ames-head{position:fixed;top:0;left:0;z-index:10001;padding:0;border:0;background:none;cursor:pointer;opacity:0;pointer-events:none;transform-origin:0 0;transition:opacity .25s ease;}',
     '#ames-head.on{opacity:1;pointer-events:auto;}',
-    '#ames-head img{position:absolute;display:block;max-width:none;pointer-events:none;}',
+    'html.ames-name-flying .mag .page.ames-home .rmwidget.widget-picture{visibility:hidden!important;}',
+    '#ames-head img{position:absolute;display:block;max-width:none;pointer-events:none;transform-origin:0 0;}',
     '#ames-head:focus-visible{outline:1px solid rgba(240,232,218,.7);outline-offset:4px;border-radius:3px;}',
     // moving photos: held while pointed at or pressed
     '.page.ames-hold .animation-container{animation-play-state:paused!important;}',
@@ -318,8 +322,10 @@
         if (an && an.cancel) an.cancel();
         var to = contentOf(i);
         if (to) to.style.opacity = '0';
+        if (i === 0) placeHome();
+        if (i === count() - 1) placeForm();
         return ready(i).then(function () {
-          return play(to, [{ translate: '0 ' + (reduce ? 0 : dir * 36) + 'px', opacity: 0 }, { translate: '0 0', opacity: 1 }], reduce ? 160 : 380, 'cubic-bezier(.2,.8,.2,1)');
+          return play(to, [{ translate: '0 ' + (reduce || i === 0 ? 0 : dir * 36) + 'px', opacity: 0 }, { translate: '0 0', opacity: 1 }], reduce ? 160 : 380, 'cubic-bezier(.2,.8,.2,1)');
         }).then(function (b) { if (to) to.style.opacity = ''; if (b && b.cancel) b.cancel(); });
       }).then(function () { busy = false; holdSlot(i); warm(i); arrived(i); }, function () { var c = contentOf(cur); if (c) c.style.opacity = ''; busy = false; settle(cur); });
     }
@@ -369,18 +375,23 @@
     dbg.cur = function () { return cur + 1; };
     function here() { return vertical() ? cur : curIdx(); }
     // the map (and anything else) hears when a page has fully arrived
-    function arrived(i) { window.postMessage({ amesArrived: i + 1 }, '*'); if (i === 0) arm(); }
+    function arrived(i) {
+      window.postMessage({ amesArrived: i + 1 }, '*');
+      if (i === 0) { placeHome(); arm(); }
+      if (i === count() - 1) { placeForm(); setTimeout(placeForm, 400); }
+    }
 
-    // Page 1 is the landing page: after 4s it moves on to the mood map by itself (a swipe or scroll goes at once).
+    // Page 1 is the landing page: after 2s it moves on to the mood map by itself (a swipe or scroll goes at once).
     // Touching the page, or the tab being in the background, restarts the wait.
-    var autoT;
+    var autoT, autoAt = -1e9;
     function arm() {
       clearTimeout(autoT);
       if (here() !== 0) return;
       autoT = setTimeout(function () {
         if (document.hidden || here() !== 0) return arm();
+        autoAt = performance.now();
         goTo(2);
-      }, 4000);
+      }, 2000);
     }
     dbg.arm = arm;
     document.addEventListener('pointerdown', function () { if (here() === 0) arm(); }, true);
@@ -406,49 +417,86 @@
         var im = w.querySelector('img'), r = scr(w);
         if (im && im.currentSrc && r.height > 4) parts.push({ src: im.currentSrc, x: r.left - pr.left, y: r.top - pr.top, w: r.width, h: r.height });
       });
-      if (!parts.length) return null;
+      // Readymag unloads page 1's pieces while you are far from it, and rebuilds them in the same place: keep the
+      // last place they were seen, so the name can always fly back to it
+      if (!parts.length) return logo.seen && logo.seen.vw === innerWidth ? logo.seen : null;
       var x0 = Math.min.apply(null, parts.map(function (q) { return q.x; })), y0 = Math.min.apply(null, parts.map(function (q) { return q.y; }));
       var x1 = Math.max.apply(null, parts.map(function (q) { return q.x + q.w; })), y1 = Math.max.apply(null, parts.map(function (q) { return q.y + q.h; }));
-      return { parts: parts, x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+      return (logo.seen = { parts: parts, x: x0, y: y0, w: x1 - x0, h: y1 - y0, vw: innerWidth });
     }
+    // AMES and HARDING side by side at equal heights; each word flies between its place on page 1 and the header
+    // The header's own copies of the two name pictures, at header size, from Readymag's image server: it never
+    // depends on page 1 having been built (a link straight to page 4 still gets its header).
+    var NAME = [
+      { src: 'https://i-p.rmcdn.net/6950a66cdb429179fc4690ec/6440110/image-dc96b975-bf35-41e1-88d7-776108eb0a02.png?w=360&e=webp&nll=true&cX=0&cY=4&cW=1844&cH=412', ar: 1007 / 225 },
+      { src: 'https://i-p.rmcdn.net/6950a66cdb429179fc4690ec/6440110/image-f54a7788-97ba-406a-9fd4-ed33ae7a1e63.png?w=480&e=webp&nll=true&cX=5&cY=34&cW=1854&cH=302', ar: 1311 / 214 }
+    ];
     var headBox = null;
     head.build = function () {
-      var L = logo();
-      if (!L) return false;
-      var hh = isPhone() ? 34 : 38, f = hh / L.h, w = L.w * f, top = 12 + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ames-safe-top')) || 0);
-      var sig = L.parts.map(function (q) { return q.src; }).join('|') + Math.round(w) + 'x' + innerWidth;
+      var phone = isPhone(), hh = phone ? 22 : 26, gap = hh * 0.45;
+      var parts = NAME;
+      var ws = parts.map(function (q) { return q.ar * hh; }), W = ws.reduce(function (m, v) { return m + v; }, 0) + gap * (parts.length - 1);
+      var top = (phone ? 14 : 30) + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ames-safe-top')) || 0);
+      var x = (innerWidth - W) / 2, at = x, tg = parts.map(function (q, n) { var t = { x: at, y: top, w: ws[n], h: hh }; at += ws[n] + gap; return t; });
+      var sig = parts.map(function (q) { return q.src; }).join('|') + Math.round(W) + 'x' + innerWidth;
       if (head.dataset.sig !== sig) {
         head.dataset.sig = sig;
         head.innerHTML = '';
-        L.parts.forEach(function (q) {
+        parts.forEach(function (q, n) {
           var im = document.createElement('img'); im.alt = ''; im.src = q.src;
-          im.style.cssText = 'left:' + ((q.x - L.x) * f).toFixed(1) + 'px;top:' + ((q.y - L.y) * f).toFixed(1) + 'px;width:' + (q.w * f).toFixed(1) + 'px;height:' + (q.h * f).toFixed(1) + 'px;';
+          im.style.cssText = 'left:' + (tg[n].x - x).toFixed(1) + 'px;top:0;width:' + tg[n].w.toFixed(1) + 'px;height:' + hh + 'px;';
           head.appendChild(im);
         });
       }
-      headBox = { x: (innerWidth - w) / 2, y: top, w: w, h: hh, f: f, L: L };
-      head.style.left = headBox.x.toFixed(1) + 'px'; head.style.top = headBox.y.toFixed(1) + 'px';
-      head.style.width = w.toFixed(1) + 'px'; head.style.height = hh + 'px';
-      window.__amesHeadBottom = top + hh + 8;
+      headBox = { x: x, y: top, w: W, h: hh, tg: tg };
+      head.style.left = x.toFixed(1) + 'px'; head.style.top = top.toFixed(1) + 'px';
+      head.style.width = W.toFixed(1) + 'px'; head.style.height = hh + 'px';
+      window.__amesHeadBottom = top + hh + 10;
       return true;
     };
-    // from the name's place on page 1 up into the header (or back down when going home)
-    function flip(up) {
-      if (!head.build() || !head.animate) return;
-      var L = headBox.L, k = 1 / headBox.f, dx = L.x - headBox.x, dy = L.y - headBox.y;
-      var big = { transform: 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) scale(' + k.toFixed(3) + ')' }, small = { transform: 'none' };
-      return head.animate(up ? [big, small] : [small, big], { duration: reduce ? 1 : 620, easing: 'cubic-bezier(.3,.7,.2,1)' });
+    // page 1's own copy of the name is hidden while a word is in flight, so the name never shows twice
+    // (a page-level style, because Readymag rebuilds a page's pieces as it comes back into view)
+    function homeLogo(show) {
+      var page = pageEls()[0];
+      if (page) page.classList.add('ames-home');
+      document.documentElement.classList.toggle('ames-name-flying', !show);
+    }
+    function fly(up) {
+      if (!head.build()) return Promise.resolve();
+      // where the words sit on page 1 (AMES, then HARDING); without page 1 built, the header just fades
+      var L = logo();
+      dbg.lastFly = { up: up, parts: L ? L.parts.length : 0 };
+      if (!L || L.parts.length !== headBox.tg.length) return Promise.resolve([]);
+      var src = L.parts.slice().sort(function (a, b) { return Math.abs(a.y - b.y) > 4 ? a.y - b.y : a.x - b.x; });
+      var ims = head.querySelectorAll('img'), jobs = [];
+      src.forEach(function (q, n) {
+        var t = headBox.tg[n], im = ims[n];
+        if (!im || !im.animate) return;
+        var big = { transform: 'translate(' + (q.x - t.x).toFixed(1) + 'px,' + (q.y - t.y).toFixed(1) + 'px) scale(' + (q.w / t.w).toFixed(4) + ',' + (q.h / t.h).toFixed(4) + ')' };
+        var an = im.animate(up ? [big, { transform: 'none' }] : [{ transform: 'none' }, big], { duration: reduce ? 480 : 700, easing: 'cubic-bezier(.3,.7,.2,1)', fill: 'forwards' });
+        jobs.push((an.finished || Promise.resolve()).then(function () { return an; }, function () { return an; }));
+      });
+      return Promise.all(jobs);
     }
     head.show = function (animate) {
       if (!head.build()) return;
       head.classList.add('on');
-      if (animate) flip(true);
+      if (animate) {
+        homeLogo(false);
+        fly(true).then(function (ans) { ans.forEach(function (a) { a.cancel(); }); homeLogo(true); });
+      }
       fitAll();
     };
     head.hide = function (animate) {
-      var an = animate && head.classList.contains('on') ? flip(false) : null;
-      if (an && an.finished) an.finished.then(function () { if (here() === 0) head.classList.remove('on'); }, function () {});
-      else head.classList.remove('on');
+      if (!animate || !head.classList.contains('on')) { head.classList.remove('on'); homeLogo(true); return; }
+      homeLogo(false);
+      fly(false).then(function (ans) {
+        // the words have landed exactly on page 1's own: swap to those in the same frame (no fade, no jump)
+        homeLogo(true);
+        head.style.transition = 'none'; head.classList.remove('on'); void head.offsetWidth;
+        ans.forEach(function (a) { a.cancel(); });
+        requestAnimationFrame(function () { head.style.transition = ''; });
+      });
     };
     dbg.head = head;
     // Phones: pages 2 onwards make room for the header. Their content eases down-and-smaller just enough to clear it,
@@ -459,17 +507,22 @@
       var old = b.dataset.fit ? b.dataset.fit.split(',').map(Number) : [1, 0], s0 = old[0], t0 = old[1], top = Infinity, low = 0;
       Array.prototype.forEach.call(pg.querySelectorAll('.rmwidget'), function (w) {
         if (w.classList.contains('widget-background') || w.closest('.page-fixed-bg-container')) return;
-        var mover = w.closest('.animation-container');
-        if (mover && getComputedStyle(mover).animationName !== 'none') return;
         var r = w.getBoundingClientRect();
         if (r.height < 2 || r.width < 2) return;
+        // a strip of photos sliding sideways is content to keep on screen; one running off the page up/down is not
+        var mover = w.closest('.animation-container');
+        if (mover && getComputedStyle(mover).animationName !== 'none') {
+          var mr = mover.getBoundingClientRect();
+          if (mr.top < pr.top - 4 || mr.bottom > pr.bottom + 4) return;
+        }
         top = Math.min(top, ((r.top - pr.top) - t0) / s0);
         low = Math.max(low, ((r.bottom - pr.top) - t0) / s0);
       });
       if (!isFinite(top)) return;
       // ...and the corner play button at the bottom, while it shows
       var mini = document.getElementById('ames-mini'), room = mini && mini.classList.contains('on') ? innerHeight - mini.getBoundingClientRect().top + 8 : 0;
-      var hb = window.__amesHeadBottom || 0, bottom = Math.min(low, innerHeight - room), s = 1, t = 0;
+      var strip = pg.querySelector('.animation-container') ? 18 : 0;   // a photo strip keeps clear of the bottom edge
+      var hb = window.__amesHeadBottom || 0, bottom = Math.min(low, innerHeight - Math.max(room, strip)), s = 1, t = 0;
       if (top < hb || low > bottom) {
         // the content's top lands at the header's bottom (or stays put if already below it), its bottom above the button
         var A = Math.max(hb, top);
@@ -541,7 +594,10 @@
       if (e.deltaMode === 1) d *= 16;
       if (!d) return;
       e.preventDefault();
+      e.stopImmediatePropagation();                  // Readymag's own wheel paging stays out of it
       var abs = Math.abs(d), dir = d > 0 ? 1 : -1, now = performance.now();
+      // a scroll that starts just as the landing page moves on by itself was aimed at that same move
+      if (now - autoAt < 900 && !locked) { locked = true; turnedAt = now; hist = []; peak = 0; trough = Infinity; fading = false; clearTimeout(quiet); quiet = setTimeout(function () { locked = false; acc = 0; }, 180); return; }
       clearTimeout(quiet);
       quiet = setTimeout(function () { locked = false; acc = 0; }, 180);   // gesture over after 180ms of silence
       // A flick keeps building for a moment after it has turned the page, then coasts and fades for a second or
@@ -565,6 +621,16 @@
       turn(acc > 0 ? 1 : -1);
     }, { passive: false, capture: true });
 
+    // Safari also sends the older 'mousewheel' events, which Readymag pages on by itself: a second page per flick
+    ['mousewheel', 'DOMMouseScroll'].forEach(function (type) {
+      window.addEventListener(type, function (e) {
+        if (isPhone() || e.ctrlKey) return;
+        var inner = e.target.closest && e.target.closest('textarea, select, [data-ames-scroll]');
+        if (inner && inner.scrollHeight > inner.clientHeight + 1) return;
+        e.preventDefault(); e.stopImmediatePropagation();
+      }, { passive: false, capture: true });
+    });
+
     // ---- desktop: page content glides in on every page change (wheel, keys, arrows); the sky stays still ----
     var lastIdx = curIdx();
     function arrive() {
@@ -574,8 +640,9 @@
       if (vertical()) return;
       clearTimeout(autoT);
       if (was === 0) head.show(true); else if (i === 0) head.hide(true);
+      if (i === count() - 1) placeForm();
       setTimeout(function () { arrived(i); }, 250);
-      if (reduce) return;
+      if (reduce || i === 0) return;
       var page = document.querySelector('.mag .page.center-page');
       var c = page && page.querySelector('.page-content-container');
       if (c && c.animate) dbg.arrivals = (dbg.arrivals || 0) + 1;
@@ -629,7 +696,7 @@
     }
     if (DEBUG) debugPanel(mag);
     buildNav(mag);
-    whenPageVisible(mag, function () { arm(); });
+    whenPageVisible(mag, function () { arrived(here()); });   // the first page shown counts as an arrival too (a link to the map ripples)
   }
 
   // ---- site-wide touches that don't belong to a widget ----
@@ -713,10 +780,12 @@
   }
   // Moves a group of widgets up or down so it sits at `ratio` of the visible screen height, whatever that height is.
   // endOf(w) gives where a widget really ends (the form's own box has no height; it ends at its send button).
-  function placeGroup(page, ws, ratio, endOf, key) {
+  // topRoom: screen pixels kept clear at the top (the header, and the last page's swipe hint); the group is then
+  // centred in what is left
+  function placeGroup(page, ws, ratio, endOf, key, topRoom, bottomRoom) {
     var box = page && page.querySelector('.page-content-container');
     if (!box || !ws.length || !ws[0].offsetWidth) return;
-    if (box.getAnimations && box.getAnimations().length) { clearTimeout(page['_t' + key]); page['_t' + key] = setTimeout(function () { placeGroup(page, ws, ratio, endOf, key); }, 600); return; }
+    if (box.getAnimations && box.getAnimations().length) { clearTimeout(page['_t' + key]); page['_t' + key] = setTimeout(function () { placeGroup(page, ws, ratio, endOf, key, topRoom, bottomRoom); }, 600); return; }
     var r0 = ws[0].getBoundingClientRect(), k = r0.width / ws[0].offsetWidth || 1;   // Readymag scales the whole page
     // under the desktop zoom these boxes can be in unzoomed units, where the screen is innerHeight / zoom tall
     var z = parseFloat(getComputedStyle(box).zoom) || 1, s = Math.abs(r0.width - ws[0].offsetWidth) < 2 ? z : 1;
@@ -726,7 +795,8 @@
       top = Math.min(top, r.top - pt - was);
       low = Math.max(low, (endOf ? endOf(w) : r.bottom) - pt - was);
     });
-    var vh = innerHeight / s, want = Math.max(24 / s, (vh - (low - top)) * ratio);
+    var vh = innerHeight / s, room = (topRoom || 0) / s;
+    var want = room ? room + Math.max(0, (vh - room - (bottomRoom || 0) / s - (low - top)) * ratio) : Math.max(24 / s, (vh - (low - top)) * ratio);
     var shift = Math.round((want - top) / k);
     ws.forEach(function (w) { w.style.translate = '0 ' + shift + 'px'; });
     dbg[key] = shift;
@@ -738,7 +808,10 @@
     if (!page) return;
     var ws = Array.prototype.filter.call(page.querySelectorAll('.rmwidget.widget-text-v3'), function (w) { return w.getBoundingClientRect().height > 0; });
     ws.push(fw);
-    placeGroup(page, ws, 0.42, function (w) { return (w === fw ? (form.querySelector('.button') || w) : w).getBoundingClientRect().bottom; }, 'formShift');
+    // below the header and the swipe hint under it (about 48px tall), centred in the rest; phones keep the bottom
+    // corner clear for the play button
+    var room = (window.__amesHeadBottom || 0) + 48;
+    placeGroup(page, ws, 0.5, function (w) { return (w === fw ? (form.querySelector('.button') || w) : w).getBoundingClientRect().bottom; }, 'formShift', room, isPhone() ? 72 : 24);
   }
   // landing page: name, tagline and email centred on the screen
   function placeHome() {
@@ -792,8 +865,9 @@
         rail.style.visibility = n === 1 ? 'hidden' : '';
         shown.n = n;
       }
-      var showHint = n === 2 && count > 2, showUp = n === count && count > 2;
-      if (showHint) { var bt = aboveplayer() + 'px'; if (hint.style.bottom !== bt) hint.style.bottom = bt; }
+      var showHint = (n === 1 || n === 2) && count > 2, showUp = n === count && count > 2;
+      if (showHint) { var bt = (n === 2 ? aboveplayer() : 14) + 'px'; if (hint.style.bottom !== bt) hint.style.bottom = bt; }
+      if (showUp) { var tp = Math.round(window.__amesHeadBottom || 12) + 'px'; if (up.style.top !== tp) { up.style.top = tp; up.style.bottom = 'auto'; } }
       var miniOn = !!(document.getElementById('ames-mini') && document.getElementById('ames-mini').classList.contains('on'));
       if (miniOn !== shown.mini) { shown.mini = miniOn; if (dbg.fitHead) dbg.fitHead(); }
       // the header follows the page (a deep link, or a page Readymag showed by itself)

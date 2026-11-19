@@ -29,25 +29,32 @@ test.describe('phone', () => {
   test('one page at a time: holding stays put, flicks and drags turn the page', async ({ page }) => {
     test.setTimeout(60000);
     await local(page);
-    await page.goto('https://amesharding.com/');
+    // from page 2 (page 1 is the landing page: it moves on by itself and can't be scrolled back to)
+    await page.goto('https://amesharding.com/2/');
     await page.waitForFunction(() => window.__amesPaging && window.__amesPaging.ready && window.__amesPaging.goTo, null, { timeout: 20000 });
-    await page.waitForTimeout(1200);
-    const H = await page.evaluate(() => document.querySelector('.mag .page').offsetHeight);
+    await page.waitForTimeout(1500);
+    const top = () => page.evaluate(() => Math.round(document.querySelectorAll('.mag .page')[window.__amesPaging.cur() - 1].getBoundingClientRect().top));
+    const at = () => page.evaluate(() => window.__amesPaging.cur());
     // mid-drag: the page stays where it is (only its content leans a little); no other page comes into view
+    const s0 = await page.evaluate(() => scrollY);
     const midScroll = await drag(page, -200, 240, false);
-    expect(midScroll, 'page stays put while the finger is down').toBeLessThan(2);
+    expect(Math.abs(midScroll - s0), 'page stays put while the finger is down').toBeLessThan(2);
     await page.evaluate(() => window.dispatchEvent(Object.assign(new Event('touchend'), {})) );
-    // short slow drag: springs back to page 1
-    await page.evaluate(() => scrollTo(0, 0)); await page.waitForTimeout(300);
-    await drag(page, -60, 600);
+    await page.waitForTimeout(500);
+    // short slow drag: stays on page 2
+    await drag(page, -50, 600);
     await page.waitForTimeout(700);
-    expect(await page.evaluate(() => scrollY), 'short slow drag springs back').toBeLessThan(5);
+    expect(await at(), 'short slow drag stays').toBe(2);
+    expect(Math.abs(await top()), 'still exactly in place').toBeLessThan(3);
     // quick short flick: next page
     await drag(page, -70, 60);
-    await expect(page).toHaveURL(/\/2\/?$/, { timeout: 3000 });
+    await expect(page).toHaveURL(/\/3\/?$/, { timeout: 3000 });
     await page.waitForTimeout(600);
-    expect(Math.abs((await page.evaluate(() => scrollY)) - H), 'lands exactly on page 2').toBeLessThan(3);
-    // long drag down: page 2 is the top
+    expect(Math.abs(await top()), 'lands exactly on page 3').toBeLessThan(3);
+    // long drag down: back to 2, and no further (page 2 is the top)
+    await drag(page, 300, 400);
+    await page.waitForTimeout(900);
+    await expect(page).toHaveURL(/\/2\/?$/);
     await drag(page, 300, 400);
     await page.waitForTimeout(900);
     await expect(page).toHaveURL(/\/2\/?$/);
@@ -60,7 +67,7 @@ test.describe('desktop', () => {
   test('one page per wheel / trackpad gesture, content glides in', async ({ page }) => {
     test.setTimeout(60000);
     await local(page);
-    await page.goto('https://amesharding.com/');
+    await page.goto('https://amesharding.com/2/');
     await page.waitForFunction(() => window.__amesPaging && window.__amesPaging.ready && window.__amesPaging.goTo, null, { timeout: 20000 });
     await page.waitForTimeout(1500);
     const cur = () => page.evaluate(() => RM.viewerRouter.mag.currentPage.num);
@@ -69,16 +76,16 @@ test.describe('desktop', () => {
     for (let i = 0; i < 45; i++) { await page.mouse.wheel(0, i < 8 ? 28 : Math.max(1, 28 - i)); await page.waitForTimeout(16); }
     const anims = await page.evaluate(() => window.__amesPaging.arrivals || 0);
     await page.waitForTimeout(400);
-    expect(await cur(), 'one trackpad gesture = one page').toBe(2);
+    expect(await cur(), 'one trackpad gesture = one page').toBe(3);
     // a second gesture after a pause: one more page
     await page.waitForTimeout(300);
     for (let i = 0; i < 20; i++) { await page.mouse.wheel(0, 24); await page.waitForTimeout(16); }
     await page.waitForTimeout(500);
-    expect(await cur()).toBe(3);
+    expect(await cur()).toBe(4);
     // one mouse-wheel notch back
     await page.waitForTimeout(300);
     await page.mouse.wheel(0, -100); await page.waitForTimeout(500);
-    expect(await cur()).toBe(2);
+    expect(await cur()).toBe(3);
     expect(anims, 'content glide-in ran on page arrival').toBeGreaterThanOrEqual(1);
     console.log('NAV desktop arrivals animated:', await page.evaluate(() => window.__amesPaging.arrivals));
   });

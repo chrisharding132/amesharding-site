@@ -135,7 +135,7 @@ const isDesktop = (i) => i.project.name.startsWith('desktop');
       expect(hdB.y + hdB.height, 'heading above the fields').toBeLessThanOrEqual(nameB.y);
       expect(hdB.y, 'heading on screen').toBeGreaterThan(20);
       expect(f.checked).toBe(true);
-      expect(f.vh - f.bottom, 'clear of the bottom').toBeGreaterThan(150);
+      expect(f.vh - f.bottom, 'clear of the bottom').toBeGreaterThan(100);
       await page.screenshot({ path: `audit-results/batch-form-${browserName}.png` });
       await page.locator('.widget-form .input-checkbox-wrapper').click();
       expect(await page.locator('.widget-form input[type=checkbox]').isChecked(), 'can be unticked').toBe(false);

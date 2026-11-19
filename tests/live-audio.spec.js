@@ -17,16 +17,20 @@ for (const [name, d] of Object.entries({ phone: PHONE, desktop: { viewport: { wi
       await expect(light).toHaveClass(/playing/, { timeout: 15000 });
       const startMs = Date.now() - t0;
       await page.waitForTimeout(700);
-      await expect(page.locator('#ames-mini'), 'no now-playing bar on the page with the full player').not.toHaveClass(/\bon\b/);
+      await expect(page.locator('#ames-mini'), 'no corner button on the page with the full player').not.toHaveClass(/\bon\b/);
       const src = await page.evaluate(() => document.querySelector('audio') ? null : null) ;
       const playingSrc = await page.evaluate(() => { const P = window.__amesPlayer; return P.resolve(P.track.src); });
-      // leave the page: music continues, bar appears
+      // leave the page: music continues, the corner button appears
       await page.evaluate(() => RM.viewerRouter.mag.goNextPage());
       await expect(page.locator('#ames-mini')).toHaveClass(/\bon\b/, { timeout: 5000 });
       await expect(page.locator('#ames-mini')).toHaveClass(/playing/);
       await page.screenshot({ path: `audit-results/mini-${name}.png` });
-      // tap the title: back to the map, bar hides
-      await page.locator('#ames-mini .t').click();
+      // the corner button pauses and plays; back on the map it hides
+      await page.locator('#ames-mini .p').click();
+      await expect(page.locator('#ames-mini')).not.toHaveClass(/playing/);
+      await page.locator('#ames-mini .p').click();
+      await expect(page.locator('#ames-mini')).toHaveClass(/playing/);
+      await page.evaluate(() => window.__amesPaging.goTo(2));
       await expect(page).toHaveURL(/\/2\/?$/, { timeout: 5000 });
       await expect(page.locator('#ames-mini')).not.toHaveClass(/\bon\b/, { timeout: 5000 });
       console.log('AUDIO', name, JSON.stringify({ tapToSoundMs: startMs, playingFrom: playingSrc.split('/').slice(2, 3)[0] }));

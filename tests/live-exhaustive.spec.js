@@ -51,7 +51,12 @@ async function expectShowing(page, n, label) {
   }
   // phones also keep their own page count (desktop doesn't use it)
   const ok = s.rm === n && (!s.phone || s.cur === n) && s.opacity > 0.99 && s.widgets > 0 && s.visible.length === 1 && s.visible[0] === n && Math.abs(s.top) <= 1 && Math.abs(s.left) <= 1;
-  if (!ok) console.log('BAD', label, JSON.stringify(s));
+  if (!ok) {
+    console.log('BAD', label, JSON.stringify(s));
+    const why = await page.evaluate(() => { const pg = document.querySelectorAll('.mag .page')[RM.viewerRouter.mag.currentPage.num - 1]; return [...pg.querySelectorAll('.rmwidget')].map((w) => { const r = w.getBoundingClientRect(); return [w.className.slice(0, 30), Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height), getComputedStyle(w).visibility, getComputedStyle(w).opacity]; }); });
+    console.log('WHY', label, JSON.stringify(why));
+    await page.screenshot({ path: 'audit-results/bad-' + label.replace(/[^a-z0-9]+/gi, '-').slice(0, 80) + '.png' });
+  }
   expect.soft(ok, `${label}: page ${n} fully showing (got ${JSON.stringify(s)})`).toBe(true);
   return s;
 }
@@ -87,7 +92,9 @@ test.describe('desktop', () => {
       // every page by its link
       for (let n = 1; n <= 5; n++) {
         await page.goto(SITE + (n > 1 ? n + '/' : ''));
-        await page.waitForTimeout(2500);
+        // page 1 moves on to the map 2s after it has painted: look at it before that
+        if (n === 1) await page.waitForFunction(() => window.__amesPaging && window.__amesPaging.ready && window.RM && RM.viewerRouter.mag.currentPage, null, { timeout: 15000 }).then(() => page.waitForTimeout(600));
+        else await page.waitForTimeout(2500);
         await expectShowing(page, n, `${browserName} ${w}x${h} link /${n}/`);
         await page.screenshot({ path: `audit-results/ex-desk-${browserName}-${w}-p${n}.png` });
       }
@@ -159,7 +166,9 @@ for (const [w, h, dpr, motion] of PHONES) {
       const errs = errors(page);
       for (let n = 1; n <= 5; n++) {
         await page.goto(SITE + (n > 1 ? n + '/' : ''));
-        await page.waitForTimeout(2500);
+        // page 1 moves on to the map 2s after it has painted: look at it before that
+        if (n === 1) await page.waitForFunction(() => window.__amesPaging && window.__amesPaging.ready && window.RM && RM.viewerRouter.mag.currentPage, null, { timeout: 15000 }).then(() => page.waitForTimeout(600));
+        else await page.waitForTimeout(2500);
         await expectShowing(page, n, `phone ${w}x${h} link /${n}/`);
         await page.screenshot({ path: `audit-results/ex-phone-${w}x${h}-p${n}.png` });
       }
@@ -216,7 +225,8 @@ test.describe('webkit phone', () => {
     const errs = errors(page);
     for (let n = 1; n <= 5; n++) {
       await page.goto(SITE + (n > 1 ? n + '/' : ''));
-      await page.waitForTimeout(2500);
+      if (n === 1) await page.waitForFunction(() => window.__amesPaging && window.__amesPaging.ready && window.RM && RM.viewerRouter.mag.currentPage, null, { timeout: 15000 }).then(() => page.waitForTimeout(600));
+      else await page.waitForTimeout(2500);
       await expectShowing(page, n, `${i.project.name} link /${n}/`);
       await page.screenshot({ path: `audit-results/ex-${i.project.name}-p${n}.png` });
     }
