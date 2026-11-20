@@ -4,6 +4,9 @@
 import { test, expect } from './mute.js';
 import { readFileSync } from 'node:fs';
 
+// phones only (it measures in phone units; computer windows of every size are covered by live-sizes.spec.js)
+test.beforeEach(({}, i) => { test.skip(!/iphone|ios/.test(i.project.name)); });
+
 async function local(page) {
   if (!process.env.LOCAL) return;
   await page.route(/chrisharding132\.github\.io\/amesharding-site\/src\/[^?]+\.(js|png)/, (route) => {
