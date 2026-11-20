@@ -17,8 +17,8 @@ const fit = (page) => page.evaluate(() => {
   const box = document.querySelector('#ames-mb'); if (!box) return null;
   const head = document.getElementById('ames-head'), hb = head && head.classList.contains('on') ? head.getBoundingClientRect().bottom : 0;
   const pl = document.getElementById('ames-player'), pr = pl && pl.getBoundingClientRect();
-  const hint = document.getElementById('ames-hint'), hr = hint && !hint.classList.contains('off') ? hint.getBoundingClientRect() : null;
-  const floor = Math.min(pr && pr.height ? pr.top : innerHeight, hr ? hr.top : innerHeight, innerHeight);
+  // (the swipe hint sits beside the page dots on the right edge, not under the map: live-sizes checks it covers no light)
+  const floor = Math.min(pr && pr.height ? pr.top : innerHeight, innerHeight);
   const items = [...box.querySelectorAll('.ames-light')].map((l) => l.getBoundingClientRect()).map((r) => [r.left + r.width / 2, r.top + r.height / 2]);
   const img = [...box.querySelectorAll('.ames-labels')].find((i) => i.style.display !== 'none'), ir = img && img.getBoundingClientRect();
   const ys = items.map((p) => p[1]);
@@ -38,7 +38,7 @@ for (const size of [[440, 782], [402, 684], [390, 664]]) {
       const f = await fit(page);
       await page.screenshot({ path: info.outputPath(`${size[0]}-${label}.png`) });
       if (!f || !f.n) { bad.push(label + ' no map'); return; }
-      // lights (radius ~16) stay below the header and above the player / swipe hint
+      // lights (radius ~16) stay below the header and above the player
       if (f.top - 16 < f.hb || f.bottom + 16 > f.floor) bad.push(`${label} lights ${f.top}-${f.bottom} outside ${f.hb}-${f.floor}`);
       if (f.labels && (f.labels[0] < f.hb - 2 || f.labels[1] > f.floor + 2)) bad.push(`${label} labels ${f.labels} outside ${f.hb}-${f.floor}`);
       console.log(size.join('x'), label, JSON.stringify(f));

@@ -16,7 +16,8 @@ async function local(page) {
 }
 function errors(page) {
   const errs = [];
-  page.on('pageerror', (e) => errs.push('pageerror: ' + e.message));
+  // (WebKit now and then refuses one of Readymag's own SVG pictures from its image server: Readymag's request, not ours)
+  page.on('pageerror', (e) => { if (!/rmcdn\.net\/.*access control checks/.test(e.message)) errs.push('pageerror: ' + e.message); });
   page.on('console', (m) => { if (m.type() === 'error' && !/favicon|Failed to load resource|ERR_BLOCKED|google|facebook|tracking|minimal-ui/i.test(m.text())) errs.push(m.text().slice(0, 160)); });
   return errs;
 }

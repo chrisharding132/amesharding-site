@@ -20,6 +20,12 @@
     // desktop: pages change in place and the content glides in vertically (below); Readymag's own sideways
     // slide between pages would run underneath that glide, so it is switched off
     'html:not(.isphone) .mag.viewer-type-horizontal .mag-pages-container .container .page{transition:none!important;}',
+    // computer windows narrower than 769px: Readymag stops shrinking the page there and cuts off its right side;
+    // here the page keeps shrinking with the window (see narrow() below)
+    'html.ames-narrow body,html.ames-narrow .mag{min-width:0!important;width:100%!important;}',
+    'html.ames-narrow .mag .mag-pages-container .container,html.ames-narrow .mag .mag-pages-container .container .page{width:100vw!important;}',
+    'html.ames-narrow .mag .mag-pages-container .container .page.prev-page{transform:translateX(-100vw)!important;}',
+    'html.ames-narrow .mag .mag-pages-container .container .page.next-page{transform:translateX(100vw)!important;}',
     '.isphone .mag.viewer-type-vertical,.isphone .mag.viewer-type-vertical .mag-pages-container{touch-action:pinch-zoom;}',
     // Readymag's bottom arrow sat on top of the Mood Player; the rail + hint below replace it on phones.
     // the rail and hint replace Readymag's arrows everywhere; scrolling is the one way through the site on every device
@@ -44,9 +50,9 @@
     'html:not(.isphone) #ames-rail button:hover span,html:not(.isphone) #ames-rail button:focus-visible span{opacity:1;transform:translate(0,-50%);}',
     'html:not(.isphone) #ames-rail button:focus-visible{outline:1px solid rgba(240,232,218,.7);outline-offset:-2px;border-radius:3px;}',
     // pages 2 onwards: the name, small, at the top (it travels there from page 1); tapping it goes home
-    // a window taller than wide but bigger than a phone (a narrow desktop window, a tablet): the large background,
-    // cropped to fit. The small phone image is only sharp at phone sizes; real phones keep loading just that one.
-    '@media (max-aspect-ratio:1/1) and (min-width:601px){html body .mag .page,html body .mag .page-fixed-bg-container,html body .mag .widget-background{background-image:url("' + BASE + 'assets/bg-landscape.jpg")!important;}}',
+    // a computer window taller than wide, however narrow (Readymag never draws the page under 769px wide): the large
+    // background, cropped to fit. The small phone image is only sharp on a phone; real phones keep loading just that one.
+    '@media (max-aspect-ratio:1/1){html:not(.isphone) body .mag .page,html:not(.isphone) body .mag .page-fixed-bg-container,html:not(.isphone) body .mag .widget-background{background-image:url("' + BASE + 'assets/bg-landscape.jpg")!important;}}',
     '#ames-head{position:fixed;top:0;left:0;z-index:10001;padding:0;border:0;background:none;cursor:pointer;opacity:0;pointer-events:none;transform-origin:0 0;transition:opacity .25s ease;}',
     '#ames-head.on{opacity:1;pointer-events:auto;}',
     'html.ames-name-flying .mag .page.ames-home .rmwidget.widget-picture{visibility:hidden!important;}',
@@ -86,14 +92,15 @@
     "  font:300 11px/46px 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif!important;letter-spacing:.26em!important;text-transform:uppercase;}",
     '.widget-form .button:hover,.widget-form .button:focus-visible{background:rgba(232,93,117,.35)!important;outline:none;}',
     '.widget-form .button svg{fill:#F0E8DA!important;}',
-    // hints: a down arrow on page 2 (just above the player) and an up arrow on the last page, every visit
-    ".ames-hint{position:fixed;left:50%;transform:translateX(-50%);z-index:10000;",
-    "  display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 14px;border:0;background:none;cursor:pointer;",
-    "  font:300 10px/1 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;",
-    '  letter-spacing:.24em;text-transform:uppercase;color:rgba(240,232,218,.8);text-shadow:0 0 10px rgba(52,48,96,.6);',
+    // hints: beside the page dots on the right edge, the word written downwards. "Scroll/Swipe" with a down arrow
+    // just under the dots on pages 1 and 2, an up arrow just above them on the last page. Out of the map's way.
+    ".ames-hint{position:fixed;top:0;left:0;z-index:10000;",
+    "  display:flex;flex-direction:column;align-items:center;gap:10px;padding:8px 4px;border:0;background:none;cursor:pointer;",
+    "  font:400 12px/1 'Neue Haas Grotesk Display Pro','Neue Haas Grotesk Display','Helvetica Neue',Helvetica,sans-serif;",
+    '  letter-spacing:.26em;text-transform:uppercase;color:rgba(240,232,218,.9);text-shadow:0 0 10px rgba(52,48,96,.7);',
     '  transition:opacity .5s ease;}',
-    '.ames-hint{bottom:calc(14px + env(safe-area-inset-bottom));}',
-    '.ames-hint svg{width:14px;height:14px;}',
+    '.ames-hint span{writing-mode:vertical-rl;}',
+    '.ames-hint svg{width:16px;height:16px;flex:none;}',
     '#ames-hint svg{animation:ames-bob-down 1.8s ease-in-out infinite;}',
     '#ames-hint-up svg{animation:ames-bob-up 1.8s ease-in-out infinite;}',
     '.ames-hint.off{opacity:0;pointer-events:none;}',
@@ -228,6 +235,23 @@
   // Readymag applies UA classes after load, so check .isphone live inside the handlers.
   function isPhone() { return document.documentElement.classList.contains('isphone'); }
 
+  // Below 769px wide Readymag holds a computer page at 769px (zoom 769/1024) and the window cuts off its right
+  // side. Carry on its own scheme instead: the 1024px-wide design zoomed to the window's width, centred top to
+  // bottom the way Readymag centres it (top = (screen height / zoom - page height) / 2).
+  function narrow() {
+    var html = document.documentElement, on = !isPhone() && innerWidth < 769;
+    if (html.classList.contains('ames-narrow') !== on) html.classList.toggle('ames-narrow', on);
+    if (!on) return;
+    var w = innerWidth, z = w / 1024;
+    Array.prototype.forEach.call(document.querySelectorAll('.mag .page'), function (pg) {
+      var c = pg.querySelector('.page-content-container'), b = pg.querySelector('.content-bounds');
+      if (b && b.style.width !== w + 'px') b.style.width = w + 'px';
+      if (!c) return;
+      var zs = z.toFixed(6), top = ((innerHeight / z - c.offsetHeight) / 2).toFixed(3) + 'px';
+      if (c.style.zoom !== zs) c.style.zoom = zs;
+      if (c.style.top !== top) c.style.top = top;
+    });
+  }
   function boot() {
     var mag = window.RM && RM.viewerRouter && RM.viewerRouter.mag;
     if (!mag) return setTimeout(boot, 120);
@@ -508,6 +532,13 @@
     function fitBelow(pg) {
       var b = pg.querySelector('.content-bounds'), pr = pg.getBoundingClientRect();
       if (!b || !pr.height) return;
+      // The map page fits itself (mood.js sizes the map between the header and the player). Scaling it here as
+      // well fed back into the map's own sizing: the map came out up to a quarter smaller and, after a browser-bar
+      // change, hundreds of pixels down the screen.
+      if (pg.querySelector('#ames-mb')) {
+        if (b.dataset.fit) { delete b.dataset.fit; b.style.transform = ''; window.postMessage({ amesPlayerSize: true }, '*'); }
+        return;
+      }
       var old = b.dataset.fit ? b.dataset.fit.split(',').map(Number) : [1, 0], s0 = old[0], t0 = old[1], top = Infinity, low = 0;
       Array.prototype.forEach.call(pg.querySelectorAll('.rmwidget'), function (w) {
         if (w.classList.contains('widget-background') || w.closest('.page-fixed-bg-container')) return;
@@ -558,10 +589,13 @@
       }
       Array.prototype.forEach.call(pg.querySelectorAll('.rmwidget'), function (w) {
         if (w.classList.contains('widget-background') || w.closest('.page-fixed-bg-container')) return;
-        var mover = w.closest('.animation-container');           // photo columns that run off the page: not content
-        if (mover && getComputedStyle(mover).animationName !== 'none') {
+        // photo columns that run off the page (the About page's moving strips): not content. Judged by their size,
+        // not by whether they are moving yet: on arrival Readymag starts them a moment late, and measured still
+        // they once made the whole page shrink to half size and drop to the bottom
+        var mover = w.closest('.animation-container');
+        if (mover) {
           var mr = mover.getBoundingClientRect();
-          if (mr.top * u < pr.top - 4 || mr.bottom * u > pr.bottom + 4) return;
+          if (mr.height * u > pr.height * 0.8 || mr.top * u < pr.top - 4 || mr.bottom * u > pr.bottom + 4) return;
         }
         add(w.getBoundingClientRect());
         var btn = w.querySelector('.widget-form .button');          // a form reaches down to its button
@@ -662,7 +696,8 @@
         peak = Math.max(peak, r);
         if (r < peak * 0.8) fading = true;
         if (fading) trough = Math.min(trough, r);
-        if (dir !== lastDir || (fading && now - turnedAt > 300 && r > Math.max(trough * 1.6, trough + 6))) { locked = false; acc = 0; }
+        // (a coast's own wobble, or a second finger brushing the pad, is not enough: that once turned 3 on to 4)
+        if (dir !== lastDir || (fading && now - turnedAt > 400 && r > Math.max(trough * 2, trough + 10))) { locked = false; acc = 0; }
       }
       lastDir = dir;
       if (locked) return;
@@ -712,6 +747,10 @@
     new MutationObserver(arrive).observe(pagesBox, { attributes: true, attributeFilter: ['class'], subtree: true });
 
     dbg.ready = true;
+    narrow();
+    addEventListener('resize', narrow);
+    setInterval(narrow, 300);
+    new MutationObserver(narrow).observe(document.querySelector('.mag-pages-container') || document.body, { attributes: true, attributeFilter: ['style'], subtree: true });
     noFormZoom();
     enhance(mag);
     if (isPhone()) {
@@ -907,14 +946,14 @@
     function page() { return (dbg.cur && isPhone() ? dbg.cur() : (mag.currentPage && mag.currentPage.num)) || 1; }
     hint.addEventListener('click', function () { if (dbg.goTo) dbg.goTo(page() + 1); else if (!mag.isLastPage()) mag.goNextPage(); });
     up.addEventListener('click', function () { if (dbg.goTo) dbg.goTo(page() - 1); else if (!mag.isFirstPage()) mag.goPrevPage(); });
-    // page 2's hint sits just above the player (which grows while a song is loaded)
-    function aboveplayer() {
-      var pl = document.getElementById('ames-player');
-      if (!pl || !pl.isConnected) return 14;
-      var r = pl.getBoundingClientRect(), c = pl.closest('.page-content-container');
-      var z = c ? parseFloat(getComputedStyle(c).zoom) || 1 : 1, k = Math.abs(r.width - pl.offsetWidth) < 2 ? z : 1;
-      var top = r.top * k;
-      return top > innerHeight * 0.4 && top < innerHeight ? Math.round(innerHeight - top + 4) : 14;
+    // both hints line up with the page dots: the down one just under them, the up one just above
+    function besideRail(el, below) {
+      var rr = rail.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+      if (!rr.height || !w) return;
+      var x = Math.round(Math.min(innerWidth - w, rr.left + rr.width / 2 - w / 2));
+      var y = Math.round(below ? rr.bottom + 10 : rr.top - 10 - h);
+      var tf = 'translate(' + x + 'px,' + y + 'px)';
+      if (el.style.transform !== tf) el.style.transform = tf;
     }
     var shown = { n: 0, count: 0, hint: null, up: null };
     function sync() {
@@ -938,8 +977,8 @@
         shown.n = n;
       }
       var showHint = (n === 1 || n === 2) && count > 2, showUp = n === count && count > 2;
-      if (showHint) { var bt = (n === 2 ? aboveplayer() : 14) + 'px'; if (hint.style.bottom !== bt) hint.style.bottom = bt; }
-      if (showUp) { var tp = Math.round(window.__amesHeadBottom || 12) + 'px'; if (up.style.top !== tp) { up.style.top = tp; up.style.bottom = 'auto'; } }
+      if (showHint) besideRail(hint, true);
+      if (showUp) besideRail(up, false);
       var miniOn = !!(document.getElementById('ames-mini') && document.getElementById('ames-mini').classList.contains('on'));
       if (miniOn !== shown.mini) { shown.mini = miniOn; if (dbg.fitHead) dbg.fitHead(); }
       // the header follows the page (a deep link, or a page Readymag showed by itself)

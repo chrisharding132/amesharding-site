@@ -260,9 +260,7 @@
     // so the map gets the same layout before and after the page arrives (no rearranging on arrival)
     plBottom = Math.min(plBottom, innerHeight);
     var expanded = (P && P.expandedHeight ? P.expandedHeight : pl.offsetHeight) * (r.height / (pl.offsetHeight || 1));
-    // the swipe hint sits just above the open player: the map keeps clear of it too, so DARK is never covered
-    var hint = document.getElementById('ames-hint'), hintH = hint ? (hint.offsetHeight || 40) + 4 : 0;
-    return (plBottom - expanded - hintH - boxTop) / k - 6;
+    return (plBottom - expanded - boxTop) / k - 6;
   }
 
   // Wide screens: the map can use the whole height of the screen above the player, not just the widget's box.
@@ -281,6 +279,21 @@
     };
   }
 
+  // The page dots and the Scroll/Swipe hint run down the right edge of the screen: where the map reaches under
+  // them, its lights keep to the left of them (in the box's own units).
+  function gutter(box, k) {
+    var rail = document.getElementById('ames-rail'), hint = document.getElementById('ames-hint');
+    if (!rail) return 0;
+    var edge = rail.getBoundingClientRect().left;
+    if (hint && hint.offsetWidth) edge = Math.min(edge, hint.getBoundingClientRect().left);
+    if (!edge) return 0;
+    var b = box.getBoundingClientRect(), c = box.closest('.page-content-container'), z = c && parseFloat(getComputedStyle(c).zoom) || 1;
+    var s = Math.abs(b.height - box.offsetHeight) < 2 && z !== 1 ? z : 1;   // rects in unzoomed units under Readymag's desktop zoom
+    var page = box.closest('.page'), pl = page ? page.getBoundingClientRect().left : 0;
+    var right = b.right * s - pl;                                       // as if the page were in view
+    return Math.max(0, (right - (edge - 6)) / (k * s));
+  }
+
   // Lights sit at their true X/Y on a fixed 0-1 scale (so adding songs never moves the others).
   // Only lights that would overlap get nudged apart, by the minimum distance needed to tap them.
   function layout(box) {
@@ -294,7 +307,10 @@
       // mid-transition measurement (page sliding, browser bar moving): ignore it and measure again shortly.
       var limit = playerLimit(box, k);
       if (limit < HB * 0.7) { limit = HB; clearTimeout(box._retry); box._retry = setTimeout(function () { layout(box); }, 500); }
-      H = Math.round(Math.min(HB, limit));
+      // the map starts below the header (the small name at the top), measured as if the page were in view
+      var head = Math.max(0, ((window.__amesHeadBottom || 0) + 4 - (box.getBoundingClientRect().top - pageTop(box))) / k);
+      H = Math.round(Math.min(HB, limit) - head);
+      stage.style.top = Math.round(head) + 'px';
     } else {
       var far = reach(box, k);
       H = Math.round(HB + far.top + far.bottom);
@@ -313,7 +329,7 @@
     var s = Math.min(W / L.w, H / L.h), ox = (W - L.w * s) / 2, oy = (H - L.h * s) / 2;
     function rect(r) { return [ox + r[0] / 100 * L.w * s, oy + r[1] / 100 * L.h * s, ox + r[2] / 100 * L.w * s, oy + r[3] / 100 * L.h * s]; }
     var pad = R + 6, drift = document.documentElement.classList.contains('isphone') || portrait ? DRIFT : DRIFT / 2;
-    var x0 = R + drift, x1 = W - R - drift;
+    var x0 = R + drift, x1 = W - R - drift - gutter(box, k);
     var y0 = Math.max(R + drift, rect(L.top)[3] + pad), y1 = Math.min(H - R - drift, rect(L.bottom)[1] - pad);
     var obstacles = L.side.map(rect).map(function (o) { return [o[0] - pad, o[1] - pad, o[2] + pad, o[3] + pad]; });
 
